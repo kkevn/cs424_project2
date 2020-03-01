@@ -47,6 +47,12 @@ storm_name_from_header = function(header_df, prefix, id){
   }
 }
 
+
+# Many names are repeated; to give unique names, we'll attach the year to it
+# For example, there are 2 "IRMA", but 1 is in 1978 and other is in 2017
+# We'll rename them as "IRMA 1978" and "IRMA 2017"
+name_freq = hashmap('', 0)
+
 # prefix is for naming unnamed storms
 # if prefix is "ATLANTIC" then unnamed storms will be named 
 # ATLANTIC STORM <storm_id>
@@ -58,10 +64,16 @@ make_huricane_data = function(data, header_indices, prefix){
     row = header_indices[row_index] # get the next header row index
     current_header = data[row,] # get the header data
     storm_name = storm_name_from_header(current_header, prefix, unnamed_id)
+    
+    if (name_freq$has_key(storm_name)){ # this name has been repeated
+      name_freq[[storm_name]] = name_freq[[storm_name]] + 1
+    } else {
+      name_freq[[storm_name]] = 1
+    }
+    
     if (current_header[1, 2] == "UNNAMED"){ # update for next id
       unnamed_id = unnamed_id + 1
     }
-    
     
     if (row_index == length(header_indices)){ # at the last header
       tables[[i]] = data[(row+1):nrow(data),] %>% # the data is from next row to the end of the data
@@ -77,7 +89,23 @@ make_huricane_data = function(data, header_indices, prefix){
     }
     i = i + 1
   }
-  tables
+  make_unique_names(tables)
+}
+
+make_unique_names = function(storm_data_list){
+  result = list()
+  i = 1 
+  for (storm_data in storm_data_list){
+    storm_name = storm_data$storm_name[1] # all are the same name, just need 1
+    if (name_freq[[storm_name]] > 1){
+      year = year(storm_data$datetime)
+      new_name = paste(storm_name, ' ', year)
+      storm_data$storm_name = new_name
+    }
+    result[[i]] = storm_data
+    i = i + 1
+  }
+  result
 }
 
 
@@ -99,9 +127,16 @@ plot_storm_path = function(storm_data, color){ # very simple plots, but will cus
 
 plot_multi_storm_path = function(storm_data_list, color_list){
   map_object = leaflet() %>% addTiles()
+  color_index = 1
   for(i in 1:length(storm_data_list)){
     storm_data = storm_data_list[[i]]
-    color = color_list[i]
+    color = color_list[color_index]
+    if (color_index == length(color_list)){ # recycle colors if not enough
+      color_index = 1 
+    } else {
+      color_index = color_index + 1
+    }
+    
     if (nrow(storm_data) == 1){ # only 1 coordinate
       map_object = map_object %>% 
         addCircleMarkers(data=storm_data, lat= ~lat, lng= ~lon, color = color)
@@ -216,8 +251,8 @@ get_storm_names = function(storm_data_list){
   result
 }
 
-colors = c("red", "blue", "gray", "pink", "purple", "black", "aqua", "royalblue",
-           "yellow", "brown", "green", "turquoise", "skyblue", "fuscia", "white", "orange")
+colors = c("red", "blue", "gray", "pink", "purple", "black", "aqua", "teal",
+           "yellow", "brown", "green", "turquoise", "orange", "fuscia", "white")
 
 
 

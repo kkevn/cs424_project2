@@ -116,8 +116,11 @@ ui = dashboardPage(
 
 server = function(input, output, session) {
     shown_names = reactiveVal() # keep track of which names are currently being displayed
+   
     
     output$map = renderLeaflet({
+      # all the names are there in the beginning
+      shown_names(atlantic_names_since_2005)
       atlantic2018 = get_storms_by_year(atlantic_data, 2018)
       plot_multi_storm_path(atlantic2018, colors)
     })
@@ -153,6 +156,7 @@ server = function(input, output, session) {
     observeEvent(input$uncheck_all_button, {
       updateCheckboxGroupInput(session, "storm_names", 
                                choices = shown_names())
+      output$map = renderLeaflet({leaflet() %>% addTiles()}) # empty map
     })
     
     # when year chosen, only shown storms from that year
@@ -164,6 +168,9 @@ server = function(input, output, session) {
         updateCheckboxGroupInput(session, "storm_names", 
                                  choices = names)
         shown_names(names) # update shown names
+        # autocheck all
+        updateCheckboxGroupInput(session, "storm_names", 
+                                 choices = shown_names(), selected = shown_names())
       }
     })
     
@@ -176,15 +183,26 @@ server = function(input, output, session) {
         updateCheckboxGroupInput(session, "storm_names", 
                                  choices = names)
         shown_names(names) # update shown names
+        # autocheck all
+        updateCheckboxGroupInput(session, "storm_names", 
+                                 choices = shown_names(), selected = shown_names())
       }
     })
     
-    
+    observeEvent(input$storm_names, {
+      storms_to_plot = get_storms_by_name(atlantic_data, input$storm_names)
+      # print(length(storms_to_plot))
+      # print(get_storm_names(storms_to_plot))
+      output$map = renderLeaflet({
+        plot_multi_storm_path(storms_to_plot, colors)
+      })
+    })
 }
 
 shinyApp(ui=ui, server=server)
 
 # update label/title to reflect what was chosen
+# color respond with magnitude/category
 
 
 
