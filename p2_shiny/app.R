@@ -9,6 +9,7 @@
 #
 ######################################################
 
+# import libraries
 library(comprehenr)
 library(dplyr)
 library(hashmap)
@@ -19,81 +20,12 @@ library(shiny)
 library(shinydashboard)
 library(stringr)
 
-source("helper.R") # all functions in this file
-# makes code cleaner and easier to manage
+# retrieve helper functions
+source("helper.R")
 
-########################## DATA PREPARATION #####################################
-########################## DATA PREPARATION #####################################
-
-data_row_header = c(
-    'Date',
-    'Time',
-    'Record_ID',
-    'Storm_Type',
-    'Lat',
-    'Lon',
-    'Speed',
-    'Pressure',
-    'Wind_Radii_NE_34',
-    'Wind_Radii_SE_34',
-    'Wind_Radii_SW_34',
-    'Wind_Radii_NW_34',
-    'Wind_Radii_NE_50',
-    'Wind_Radii_SE_50',
-    'Wind_Radii_SW_50',
-    'Wind_Radii_NW_50',
-    'Wind_Radii_NE_64',
-    'Wind_Radii_SE_64',
-    'Wind_Radii_SW_64',
-    'Wind_Radii_NW_64',
-    'Size'
-)
-
-# read in the original unmodded CSV files
-atlantic_data = read.csv('atlantic_huricane.csv', header = FALSE, stringsAsFactors = FALSE)
-pacific_data = read.csv('pacific_huricane.csv', header = FALSE, stringsAsFactors = FALSE)
-
-# apply column names to data
-colnames(pacific_data) = data_row_header
-colnames(atlantic_data) = data_row_header
-
-# trim the first 6 string columns that contain leading/trailing whitespace
-for (col in 1: 6) {
-    pacific_data[, col] = str_trim(pacific_data[, col])
-    atlantic_data[, col] = str_trim(atlantic_data[, col])
-}
-
-# create a new timestamp column containing both date and time
-pacific_data = pacific_data %>% mutate(Timestamp = parse_date_time(
-    paste(pacific_data$Date, pacific_data$Time, sep = ' '),
-    "Ymd HM",
-    tz = 'America/Chicago',
-    quiet = TRUE
-))
-
-atlantic_data = atlantic_data %>% mutate(Timestamp = parse_date_time(
-    paste(atlantic_data$Date, atlantic_data$Time, sep = ' '),
-    "Ymd HM",
-    tz = 'America/Chicago',
-    quiet = TRUE
-))
-
-# update coordinates to plot-friendly values
-atlantic_data$Lat = remake_coordinates(atlantic_data$Lat)
-atlantic_data$Lon = remake_coordinates(atlantic_data$Lon)
-pacific_data$Lat = remake_coordinates(pacific_data$Lat)
-pacific_data$Lon = remake_coordinates(pacific_data$Lon)
-
-# get list of all indices with hurricane headers
-atlantic_header_indices = header_locations(atlantic_data)
-pacific_header_indices = header_locations(pacific_data)
-
-# list of dataframes of storms; this wil be the main storage for the data, makes it easy to plot
-atlantic_data = make_huricane_data(atlantic_data, atlantic_header_indices, "ATLANTIC") # contains names and name_data
-pacific_data = make_huricane_data(pacific_data, pacific_header_indices, "PACIFIC") # contains names and name_data
-
-# if needed, can merge into one list 
-#combined_data = c(atlantic_data, pacific_data)
+# read in the processed data
+atlantic_data <- readRDS(file = "atlantic_data.rds")
+pacific_data <- readRDS(file = "pacific_data.rds")
 
 ########################## DATA NEEDED FOR PLOTTING #####################################
 ########################## DATA NEEDED FOR PLOTTING #####################################
