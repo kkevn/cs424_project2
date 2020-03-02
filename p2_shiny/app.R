@@ -1,60 +1,102 @@
-library(hashmap)
+######################################################
+# CS 424 | Project 2
+# Kevin Kowalski - kkowal28
+# Samuel Kajah - skajah2
+# Vijay Vemu - vvemu3
+######################################################
+#
+# < insert project info and notes here >
+#
+######################################################
+
 library(comprehenr)
-library(lubridate)
 library(dplyr)
+library(hashmap)
 library(leaflet)
-library(stringr)
+library(lubridate)
+library(readr)
 library(shiny)
 library(shinydashboard)
-library(readr)
+library(stringr)
 
 source("helper.R") # all functions in this file
 # makes code cleaner and easier to manage
 
-data_row_header = c('date', 'time', 'record_id', 'storm_type', 'lat', 'lon', 'speed', 'pressure', 
-                    'wind_radii_ne_34', 'wind_radii_se_34', 'wind_radii_sw_34', 'wind_radii_nw_34',
-                    'wind_radii_ne_50', 'wind_radii_se_50', 'wind_radii_sw_50', 'wind_radii_nw_50',
-                    'wind_radii_ne_64', 'wind_radii_se_64', 'wind_radii_sw_64', 'wind_radii_nw_64', 'size')
+########################## DATA PREPARATION #####################################
+########################## DATA PREPARATION #####################################
 
-# these are the original files (without any mods); 
-pacific_data = read.csv('pacific_huricane.csv', header=FALSE, stringsAsFactors = FALSE)
-atlantic_data = read.csv('atlantic_huricane.csv', header=FALSE, stringsAsFactors = FALSE)
+data_row_header = c(
+    'Date',
+    'Time',
+    'Record_ID',
+    'Storm_Type',
+    'Lat',
+    'Lon',
+    'Speed',
+    'Pressure',
+    'Wind_Radii_NE_34',
+    'Wind_Radii_SE_34',
+    'Wind_Radii_SW_34',
+    'Wind_Radii_NW_34',
+    'Wind_Radii_NE_50',
+    'Wind_Radii_SE_50',
+    'Wind_Radii_SW_50',
+    'Wind_Radii_NW_50',
+    'Wind_Radii_NE_64',
+    'Wind_Radii_SE_64',
+    'Wind_Radii_SW_64',
+    'Wind_Radii_NW_64',
+    'Size'
+)
 
+# read in the original unmodded CSV files
+atlantic_data = read.csv('atlantic_huricane.csv', header = FALSE, stringsAsFactors = FALSE)
+pacific_data = read.csv('pacific_huricane.csv', header = FALSE, stringsAsFactors = FALSE)
 
+# apply column names to data
 colnames(pacific_data) = data_row_header
 colnames(atlantic_data) = data_row_header
 
-# The first 6 columns are strings that contains leading/trailing whitespace; trim them
-for (col in 1:6){
-  pacific_data[, col] = str_trim(pacific_data[, col])
-  atlantic_data[, col] = str_trim(atlantic_data[, col])
+# trim the first 6 string columns that contain leading/trailing whitespace
+for (col in 1: 6) {
+    pacific_data[, col] = str_trim(pacific_data[, col])
+    atlantic_data[, col] = str_trim(atlantic_data[, col])
 }
 
+# create a new timestamp column containing both date and time
+pacific_data = pacific_data %>% mutate(Timestamp = parse_date_time(
+    paste(pacific_data$Date, pacific_data$Time, sep = ' '),
+    "Ymd HM",
+    tz = 'America/Chicago',
+    quiet = TRUE
+))
 
-# make a timestamp col
-pacific_data = pacific_data %>% mutate(datetime=parse_date_time(paste(pacific_data$date, pacific_data$time, sep=' '), "Ymd HM", tz = 'America/Chicago', quiet=TRUE))
+atlantic_data = atlantic_data %>% mutate(Timestamp = parse_date_time(
+    paste(atlantic_data$Date, atlantic_data$Time, sep = ' '),
+    "Ymd HM",
+    tz = 'America/Chicago',
+    quiet = TRUE
+))
 
-atlantic_data = atlantic_data %>% mutate(datetime=parse_date_time(paste(atlantic_data$date, atlantic_data$time, sep=' '), "Ymd HM", tz = 'America/Chicago', quiet=TRUE))
+# update coordinates to plot-friendly values
+atlantic_data$Lat = remake_coordinates(atlantic_data$Lat)
+atlantic_data$Lon = remake_coordinates(atlantic_data$Lon)
+pacific_data$Lat = remake_coordinates(pacific_data$Lat)
+pacific_data$Lon = remake_coordinates(pacific_data$Lon)
 
-
-# reassign the coordinates
-pacific_data$lat = remake_coordinates(pacific_data$lat)
-pacific_data$lon = remake_coordinates(pacific_data$lon)
-atlantic_data$lat = remake_coordinates(atlantic_data$lat)
-atlantic_data$lon = remake_coordinates(atlantic_data$lon)
-
-# get the header indices
-pacific_header_indices = header_locations(pacific_data)
+# get list of all indices with hurricane headers
 atlantic_header_indices = header_locations(atlantic_data)
+pacific_header_indices = header_locations(pacific_data)
 
-
-# list of dataframes of storms; this wil be the main storage for the data. makes it easy to plot
-pacific_data = make_huricane_data(pacific_data, pacific_header_indices, "PACIFIC") # contains names and name_data
+# list of dataframes of storms; this wil be the main storage for the data, makes it easy to plot
 atlantic_data = make_huricane_data(atlantic_data, atlantic_header_indices, "ATLANTIC") # contains names and name_data
-# if needed, can merge into 1 list 
-# combined_data = c(pacific_data, atlantic_data)
+pacific_data = make_huricane_data(pacific_data, pacific_header_indices, "PACIFIC") # contains names and name_data
 
+# if needed, can merge into one list 
+#combined_data = c(atlantic_data, pacific_data)
 
+########################## DATA NEEDED FOR PLOTTING #####################################
+########################## DATA NEEDED FOR PLOTTING #####################################
 
 atlantic_since2005 = get_storms_since(atlantic_data, 2005)
 
@@ -67,185 +109,191 @@ atlantic_names_since_2005 = get_storm_names(atlantic_since2005)
 
 atlantic_top10_names = get_storm_names(atlantic_top10)
 
+atlantic_names_chronological = get_storm_names_chronologically(atlantic_data)
+
+atlantic_names_alphabetical = get_storm_names_alphabetically(atlantic_data)
+
+atlantic_names_by_max_speed = get_storm_names_max_speed(atlantic_data)
+
+atlantic_names_by_min_pressure = get_storm_names_min_pressure(atlantic_data)
+
+########################## DASHBOARD #####################################
+########################## DASHBOARD #####################################
 
 ui = dashboardPage(
-  
-  dashboardHeader(title = "Atlantic & Pacific Hurricane Data"),
-  
-  dashboardSidebar(disable = FALSE, collapsed = FALSE,
-                   sidebarMenu(
-                     # add space to sidebar
-                     menuItem("", tabName = "cheapBlankSpace", icon = NULL),
-                     menuItem("", tabName = "cheapBlankSpace", icon = NULL),
-                     menuItem("", tabName = "cheapBlankSpace", icon = NULL),
-                     menuItem("", tabName = "cheapBlankSpace", icon = NULL),
-                     menuItem("", tabName = "cheapBlankSpace", icon = NULL),
-                     menuItem("", tabName = "cheapBlankSpace", icon = NULL),
-                     menuItem("", tabName = "cheapBlankSpace", icon = NULL),
-                     menuItem("", tabName = "cheapBlankSpace", icon = NULL)),
-                   
-                   # about button
-                   actionButton("about_info", "About", width = 200)
-  ), # end sidebarMenu
-  
-  dashboardBody(
-    fluidRow(
-      column(6, leafletOutput(outputId = "map")),
-      column(6, plotOutput(outputId = "plot")), # empty space to store the bar graph
-      column(12, box(title = "Storms Since 2005", width = NULL, status = "info")),
-      column(2,
-             checkboxGroupInput(inputId = "storm_names", label = "Name", 
-                                choices = atlantic_names_since_2005)
-      ),
-      column(1,
-             actionButton(inputId = "show_all_names_button", label = "Show All"),
-             actionButton(inputId = "show_top10_names_button", label = "Show Top 10"),
-             actionButton(inputId = "check_all_button", label = "Check All"),
-             actionButton(inputId = "uncheck_all_button", label = "Uncheck All")
-      ),
-            
-      column(2, offset = 1,
-             selectInput(inputId = "years", label = "Year", choices = c("", 2005:2018)),
-             selectInput(inputId = "days", label = "Day", choices = atlantic_storm_days)
-             )
-    ) # end fluidRow
     
-  ) # end dashboardBody
+    dashboardHeader(title = "Atlantic & Pacific Hurricane Data"),
+    
+    dashboardSidebar(disable = FALSE, collapsed = FALSE,
+                     sidebarMenu(
+                         # add space to sidebar
+                         menuItem("", tabName = "cheapBlankSpace", icon = NULL),
+                         menuItem("", tabName = "cheapBlankSpace", icon = NULL),
+                         menuItem("", tabName = "cheapBlankSpace", icon = NULL),
+                         menuItem("", tabName = "cheapBlankSpace", icon = NULL),
+                         menuItem("", tabName = "cheapBlankSpace", icon = NULL),
+                         menuItem("", tabName = "cheapBlankSpace", icon = NULL),
+                         menuItem("", tabName = "cheapBlankSpace", icon = NULL),
+                         menuItem("", tabName = "cheapBlankSpace", icon = NULL)),
+                     
+                     # about button
+                     actionButton("about_info", "About", width = 200)
+    ), # end sidebarMenu
+    
+    dashboardBody(
+        fluidRow(
+            column(6, leafletOutput(outputId = "map")),
+            column(6, plotOutput(outputId = "plot")), # empty space to store the bar graph
+            column(12, box(title = "Storms Since 2005", width = NULL, status = "info")),
+            column(2,
+                   checkboxGroupInput(inputId = "storm_names", label = "Name", 
+                                      choices = atlantic_names_since_2005)
+            ),
+            column(1,
+                   actionButton(inputId = "show_all_names_button", label = "Show All"),
+                   actionButton(inputId = "show_top10_names_button", label = "Show Top 10"),
+                   actionButton(inputId = "check_all_button", label = "Check All"),
+                   actionButton(inputId = "uncheck_all_button", label = "Uncheck All"),
+                   
+                   actionButton(inputId = "show_all_names_chrono_button", label = "Show All Chronologically"),
+                   actionButton(inputId = "show_all_names_alpha_button", label = "Show All Alphabetically"),
+                   actionButton(inputId = "show_all_names_max_speed_button", label = "Show All by Max Speed"),
+                   actionButton(inputId = "show_all_names_min_pressure_button", label = "Show All by Min Pressure")
+            ),
+            
+            column(2, offset = 1,
+                   selectInput(inputId = "years", label = "Year", choices = c("", 2005:2018)),
+                   selectInput(inputId = "days", label = "Day", choices = atlantic_storm_days)
+            ),
+            
+            column(3,
+                box(title = "Overview Graph", solidHeader = TRUE, status = "primary", width = 12,
+                    span(textOutput("overview"), style = "font-size:150%")
+                    # remove above span line and replace with plot
+                )
+            )
+        ) # end fluidRow
+        
+    ) # end dashboardBody
 ) # end dashboardPage
 
 
 server = function(input, output, session) {
     shown_names = reactiveVal() # keep track of which names are currently being displayed
-   
+    
     
     output$map = renderLeaflet({
-      # all the names are there in the beginning
-      shown_names(atlantic_names_since_2005)
-      atlantic2018 = get_storms_by_year(atlantic_data, 2018)
-      plot_multi_storm_path(atlantic2018, colors)
+        # all the names are there in the beginning
+        shown_names(atlantic_names_since_2005)
+        atlantic2018 = get_storms_by_year(atlantic_data, 2018)
+        #plot_multi_storm_path(atlantic2018, colors)
+        plot_multi_storm_path_by_size(atlantic2018, colors)
     })
     
     observeEvent(input$about_info, {
-      showModal(
-        modalDialog(
-          HTML(read_file("about.html")),
-          easyClose = TRUE
-        )
-      ) # end showModal
+        showModal(
+            modalDialog(
+                HTML(read_file("about.html")),
+                easyClose = TRUE
+            )
+        ) # end showModal
     }) # end about info 
     
     # Show all the storms in Atlantic
     observeEvent(input$show_all_names_button, {
-      updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_since_2005)
-      shown_names(atlantic_names_since_2005) # update the shown names
+        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_since_2005)
+        shown_names(atlantic_names_since_2005) # update the shown names
+    })
+    
+    # Show all the storms in Atlantic chronologically
+    observeEvent(input$show_all_names_chrono_button, {
+        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_chronological)
+        shown_names(atlantic_names_chronological) # update the shown names
+    })
+    
+    # Show all the storms in Atlantic alphabetically 
+    observeEvent(input$show_all_names_alpha_button, {
+        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_alphabetical)
+        shown_names(atlantic_names_alphabetical) # update the shown names
+    })
+    
+    # Show all the storms in Atlantic by max wind speed
+    observeEvent(input$show_all_names_max_speed_button, {
+        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_by_max_speed)
+        shown_names(atlantic_names_by_max_speed) # update the shown names
+    })
+    
+    # Show all the storms in Atlantic by minimum pressure
+    observeEvent(input$show_all_names_min_pressure_button, {
+        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_by_min_pressure)
+        shown_names(atlantic_names_by_min_pressure) # update the shown names
     })
     
     # Show only top top storms
     observeEvent(input$show_top10_names_button, {
-      updateCheckboxGroupInput(session, "storm_names", choices = atlantic_top10_names)
-      shown_names(atlantic_top10_names) # update the shown names
+        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_top10_names)
+        shown_names(atlantic_top10_names) # update the shown names
     })
     
     # Check all the options currently shown
     observeEvent(input$check_all_button, {
-      updateCheckboxGroupInput(session, "storm_names", 
-                               choices = shown_names(), selected = shown_names())
+        updateCheckboxGroupInput(session, "storm_names", 
+                                 choices = shown_names(), selected = shown_names())
     })
     
     # Uncheck all the options currently shown 
     observeEvent(input$uncheck_all_button, {
-      updateCheckboxGroupInput(session, "storm_names", 
-                               choices = shown_names())
-      output$map = renderLeaflet({leaflet() %>% addTiles()}) # empty map
+        updateCheckboxGroupInput(session, "storm_names", 
+                                 choices = shown_names())
+        output$map = renderLeaflet({leaflet() %>% addTiles()}) # empty map
     })
     
     # when year chosen, only shown storms from that year
     observeEvent(input$years, {
-      if (input$years != ""){
-        year_storms = get_storms_by_year(atlantic_data, input$years)
-        names = get_storm_names(year_storms)
-        
-        updateCheckboxGroupInput(session, "storm_names", 
-                                 choices = names)
-        shown_names(names) # update shown names
-        # autocheck all
-        updateCheckboxGroupInput(session, "storm_names", 
-                                 choices = shown_names(), selected = shown_names())
-      }
+        if (input$years != ""){
+            year_storms = get_storms_by_year(atlantic_data, input$years)
+            names = get_storm_names(year_storms)
+            
+            updateCheckboxGroupInput(session, "storm_names", 
+                                     choices = names)
+            shown_names(names) # update shown names
+            # autocheck all
+            updateCheckboxGroupInput(session, "storm_names", 
+                                     choices = shown_names(), selected = shown_names())
+        }
     })
     
     # when day chosen, only shown storms from that day
     observeEvent(input$days, {
-      if (input$days != ""){
-        day_storms = get_storms_by_day(atlantic_data, input$days)
-        names = get_storm_names(day_storms)
-        
-        updateCheckboxGroupInput(session, "storm_names", 
-                                 choices = names)
-        shown_names(names) # update shown names
-        # autocheck all
-        updateCheckboxGroupInput(session, "storm_names", 
-                                 choices = shown_names(), selected = shown_names())
-      }
+        if (input$days != ""){
+            day_storms = get_storms_by_day(atlantic_data, input$days)
+            names = get_storm_names(day_storms)
+            
+            updateCheckboxGroupInput(session, "storm_names", 
+                                     choices = names)
+            shown_names(names) # update shown names
+            # autocheck all
+            updateCheckboxGroupInput(session, "storm_names", 
+                                     choices = shown_names(), selected = shown_names())
+        }
     })
     
     observeEvent(input$storm_names, {
-      storms_to_plot = get_storms_by_name(atlantic_data, input$storm_names)
-      # print(length(storms_to_plot))
-      # print(get_storm_names(storms_to_plot))
-      output$map = renderLeaflet({
-        plot_multi_storm_path(storms_to_plot, colors)
-      })
+        storms_to_plot = get_storms_by_name(atlantic_data, input$storm_names)
+        # print(length(storms_to_plot))
+        # print(get_storm_names(storms_to_plot))
+        output$map = renderLeaflet({
+            #plot_multi_storm_path(storms_to_plot, colors)
+            plot_multi_storm_path_by_size(storms_to_plot, colors)
+        })
     })
+    
+    # overview graph
+    output$overview <- renderText({paste("< Vijay's overview graph here > ")})
+    
 }
 
 shinyApp(ui=ui, server=server)
 
 # update label/title to reflect what was chosen
 # color respond with magnitude/category
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
