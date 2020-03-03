@@ -49,6 +49,10 @@ atlantic_names_by_max_speed = get_storm_names_max_speed(atlantic_data)
 
 atlantic_names_by_min_pressure = get_storm_names_min_pressure(atlantic_data)
 
+combined_data = c(atlantic_data, pacific_data)
+post2005_combined_data <- get_storms_since(combined_data, 2005)
+binded_rows <- bind_rows(post2005_combined_data, .id="df")
+
 ########################## DASHBOARD #####################################
 ########################## DASHBOARD #####################################
 
@@ -99,15 +103,15 @@ ui = dashboardPage(
             ),
             
             column(3,
-                box(title = "Overview Graph", solidHeader = TRUE, status = "primary", width = 12,
-                    span(textOutput("overview"), style = "font-size:150%")
+                box(title = "Overview Graph", solidHeader = TRUE, status = "primary", width = 14,
+                    plotOutput("overview", height = 200), style = "font-size:150%")
                     # remove above span line and replace with plot
                 )
             )
         ) # end fluidRow
         
     ) # end dashboardBody
-) # end dashboardPage
+# end dashboardPage
 
 
 server = function(input, output, session) {
@@ -221,7 +225,7 @@ server = function(input, output, session) {
     })
     
     # overview graph
-    output$overview <- renderText({paste("< Vijay's overview graph here > ")})
+ output$overview <- renderPlot({ggplot(binded_rows, aes(x = year(binded_rows$Timestamp))) + geom_bar(fill = "purple") + labs(title = "Number of hurriances per year since 2005", x = "Year of Hurricane", y = "Number of Hurricances") + scale_x_continuous(breaks=2005:2018)})  
     
 }
 
