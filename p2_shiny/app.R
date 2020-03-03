@@ -12,6 +12,7 @@
 # import libraries
 library(comprehenr)
 library(dplyr)
+library(ggplot2)
 library(hashmap)
 library(leaflet)
 library(lubridate)
