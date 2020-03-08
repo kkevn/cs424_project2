@@ -96,7 +96,7 @@ make_huricane_data = function(data, header_indices, prefix) {
     make_unique_names(tables)
 }
 
-# ???
+# Use the hashmap to determine which names are repeated; if so, attach the year to it
 make_unique_names = function(storm_data_list) {
     result = list()
     i = 1
@@ -374,20 +374,7 @@ get_storm_names_chronologically = function(storm_data_list) {
 
 # get a list of all storm names alphabetically
 get_storm_names_alphabetically = function(storm_data_list) {
-    table = list()
-    i = 1
-    for (storm_data in storm_data_list) {
-        table[[i]] = storm_data$Storm_Name[1]
-        i = i + 1
-    }
-    
-    # build dataframe of each hurricane by name
-    df <- data.frame(matrix(unlist(table), nrow = length(table), byrow = T), stringsAsFactors = FALSE)
-    names(df)[1] <- "Storm_Name"
-    
-    # sort in alphabetical order and return the ordered list of names
-    df <- df[order(df$Storm_Name), ]
-    df
+    sort(unlist(get_storm_names(storm_data_list)))
 }
 
 # get a list of all storm names by max speed

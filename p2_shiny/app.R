@@ -31,6 +31,7 @@ pacific_data <- readRDS(file = "pacific_data.rds")
 ########################## DATA NEEDED FOR PLOTTING #####################################
 ########################## DATA NEEDED FOR PLOTTING #####################################
 
+
 atlantic_since2005 = get_storms_since(atlantic_data, 2005)
 
 # for the select input in UI, not all are showing; explore later
@@ -42,13 +43,6 @@ atlantic_names_since_2005 = get_storm_names(atlantic_since2005)
 
 atlantic_top10_names = get_storm_names(atlantic_top10)
 
-atlantic_names_chronological = get_storm_names_chronologically(atlantic_data)
-
-atlantic_names_alphabetical = get_storm_names_alphabetically(atlantic_data)
-
-atlantic_names_by_max_speed = get_storm_names_max_speed(atlantic_data)
-
-atlantic_names_by_min_pressure = get_storm_names_min_pressure(atlantic_data)
 
 combined_data = c(atlantic_data, pacific_data)
 post2005_combined_data <- get_storms_since(combined_data, 2005)
@@ -79,23 +73,23 @@ ui = dashboardPage(
     
     dashboardBody(
         fluidRow(
-            column(6, leafletOutput(outputId = "map")),
-            column(6, plotOutput(outputId = "plot")), # empty space to store the bar graph
-            column(12, box(title = "Storms Since 2005", width = NULL, status = "info")),
+            column(6, box(title = "Pacific Storms", width = NULL, status = "primary")),
+            column(6, box(title = "Atlantic Storms", width = NULL, status = "primary")),
+            column(6, leafletOutput(outputId = "pacific_map")),
+            column(6, leafletOutput(outputId = "atlantic_map")), # empty space to store the bar graph
+            column(12, box(title = "Pacitic and Atlantic Storms", width = NULL, status = "info")),
             column(2,
                    checkboxGroupInput(inputId = "storm_names", label = "Name", 
-                                      choices = atlantic_names_since_2005)
+                                      choices =c(""))
             ),
-            column(1,
+            column(2,
                    actionButton(inputId = "show_all_names_button", label = "Show All"),
                    actionButton(inputId = "show_top10_names_button", label = "Show Top 10"),
                    actionButton(inputId = "check_all_button", label = "Check All"),
                    actionButton(inputId = "uncheck_all_button", label = "Uncheck All"),
                    
-                   actionButton(inputId = "show_all_names_chrono_button", label = "Show All Chronologically"),
-                   actionButton(inputId = "show_all_names_alpha_button", label = "Show All Alphabetically"),
-                   actionButton(inputId = "show_all_names_max_speed_button", label = "Show All by Max Speed"),
-                   actionButton(inputId = "show_all_names_min_pressure_button", label = "Show All by Min Pressure")
+                   selectInput(inputId = "storm_order", label = "Order By",
+                               choices = c("", "Alphabetically", "Chronologically", "Max Speed", "Min Pressure"))
             ),
             
             column(2, offset = 1,
@@ -119,11 +113,13 @@ server = function(input, output, session) {
     shown_names = reactiveVal() # keep track of which names are currently being displayed
     
     
-    output$map = renderLeaflet({
-        # all the names are there in the beginning
-        shown_names(atlantic_names_since_2005)
+    output$atlantic_map = renderLeaflet({
+        
         atlantic2018 = get_storms_by_year(atlantic_data, 2018)
-        #plot_multi_storm_path(atlantic2018, colors)
+        names = get_storm_names(atlantic2018)
+        updateCheckboxGroupInput(session, "storm_names", choices = names, selected = names)
+        shown_names(names) # update shown names
+        
         plot_multi_storm_path_by_size(atlantic2018, colors)
     })
     
@@ -138,37 +134,48 @@ server = function(input, output, session) {
     
     # Show all the storms in Atlantic
     observeEvent(input$show_all_names_button, {
-        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_since_2005)
+        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_since_2005,
+                                 selected = atlantic_names_since_2005)
         shown_names(atlantic_names_since_2005) # update the shown names
     })
     
-    # Show all the storms in Atlantic chronologically
-    observeEvent(input$show_all_names_chrono_button, {
-        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_chronological)
-        shown_names(atlantic_names_chronological) # update the shown names
-    })
-    
-    # Show all the storms in Atlantic alphabetically 
-    observeEvent(input$show_all_names_alpha_button, {
-        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_alphabetical)
-        shown_names(atlantic_names_alphabetical) # update the shown names
-    })
-    
-    # Show all the storms in Atlantic by max wind speed
-    observeEvent(input$show_all_names_max_speed_button, {
-        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_by_max_speed)
-        shown_names(atlantic_names_by_max_speed) # update the shown names
-    })
-    
-    # Show all the storms in Atlantic by minimum pressure
-    observeEvent(input$show_all_names_min_pressure_button, {
-        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_names_by_min_pressure)
-        shown_names(atlantic_names_by_min_pressure) # update the shown names
-    })
+    observeEvent(input$storm_order, {
+        order_by = input$storm_order
+        if (order_by != ""){
+            selected_names = input$storm_names # keep track of selected since we'll be rearranging the list
+            if (order_by == "Alphabetically"){
+                updateCheckboxGroupInput(session, "storm_names", 
+                                         choices = get_storm_names_alphabetically(
+                                             get_storms_by_name(atlantic_data , shown_names())
+                                             ),
+                                         selected = selected_names
+                                         )
+            } else if (order_by == "Chronologically"){
+                
+            } else if (order_by == "Max Speed"){
+                updateCheckboxGroupInput(session, "storm_names", 
+                                         choices = get_storm_names_max_speed(
+                                             get_storms_by_name(atlantic_data , shown_names())
+                                            ),
+                                         selected = selected_names
+                                        )
+            } else if (order_by == "Min Pressure"){
+                updateCheckboxGroupInput(session, "storm_names", 
+                                         choices = get_storm_names_min_pressure(
+                                             get_storms_by_name(atlantic_data , shown_names())
+                                         ),
+                                         selected = selected_names
+                )
+            }
+        } # end if
+        
+    }) # no need to update shown names because they are the same; just changing the order
+  
     
     # Show only top top storms
     observeEvent(input$show_top10_names_button, {
-        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_top10_names)
+        updateCheckboxGroupInput(session, "storm_names", choices = atlantic_top10_names, 
+                                 selected = atlantic_top10_names)
         shown_names(atlantic_top10_names) # update the shown names
     })
     
@@ -182,7 +189,7 @@ server = function(input, output, session) {
     observeEvent(input$uncheck_all_button, {
         updateCheckboxGroupInput(session, "storm_names", 
                                  choices = shown_names())
-        output$map = renderLeaflet({leaflet() %>% addTiles()}) # empty map
+        output$atlantic_map = renderLeaflet({leaflet() %>% addTiles()}) # show empty map
     })
     
     # when year chosen, only shown storms from that year
@@ -216,17 +223,20 @@ server = function(input, output, session) {
     })
     
     observeEvent(input$storm_names, {
+        # for some reason, last uncheck doesn't trigger observeEvent
         storms_to_plot = get_storms_by_name(atlantic_data, input$storm_names)
-        # print(length(storms_to_plot))
-        # print(get_storm_names(storms_to_plot))
-        output$map = renderLeaflet({
-            #plot_multi_storm_path(storms_to_plot, colors)
+        output$atlantic_map = renderLeaflet({
             plot_multi_storm_path_by_size(storms_to_plot, colors)
         })
     })
     
     # overview graph
- output$overview <- renderPlot({ggplot(binded_rows, aes(x = year(binded_rows$Timestamp))) + geom_bar(fill = "purple") + labs(title = "Number of hurriances per year since 2005", x = "Year of Hurricane", y = "Number of Hurricances") + scale_x_continuous(breaks=2005:2018)})  
+ output$overview <- renderPlot({
+     ggplot(binded_rows, aes(x = year(binded_rows$Timestamp))) + 
+         geom_bar(fill = "purple") + 
+         labs(title = "Number of hurriances per year since 2005", x = "Year of Hurricane", y = "Number of Hurricances") + 
+         scale_x_continuous(breaks=2005:2018)
+     })  
     
 }
 
