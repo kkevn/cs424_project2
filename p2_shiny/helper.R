@@ -377,8 +377,8 @@ get_storm_names_alphabetically = function(storm_data_list) {
     sort(unlist(get_storm_names(storm_data_list)))
 }
 
-# get a list of all storm names by max speed
-get_storm_names_max_speed = function(storm_data_list) {
+# get a list of all storm names by max speed in optional specified range
+get_storm_names_max_speed = function(storm_data_list, low, high) {
     table = list()
     i = 1
     for (storm_data in storm_data_list) {
@@ -392,13 +392,27 @@ get_storm_names_max_speed = function(storm_data_list) {
     names(df)[2] <- "TopSpeed"
     df$TopSpeed <- as.numeric(df$TopSpeed)
     
+    # if parameters for low of range specified
+    if (missing(low) == FALSE) {
+        
+        # remove out of range values from dataframe
+        df <- filter(df, TopSpeed >= low)
+    }
+    
+    # if parameters for high of range specified
+    if (missing(high) == FALSE) {
+        
+        # remove out of range values from dataframe
+        df <- filter(df, TopSpeed <= high)
+    }
+    
     # sort in descending order and return the ordered list of names
     df <- df[order(-df$TopSpeed), ]
     df$Storm_Name
 }
 
-# get a list of all storm names by minimum pressure
-get_storm_names_min_pressure = function(storm_data_list) {
+# get a list of all storm names by minimum pressure in optional specified range
+get_storm_names_min_pressure = function(storm_data_list, low, high) {
     table = list()
     i = 1
     for (storm_data in storm_data_list) {
@@ -411,6 +425,20 @@ get_storm_names_min_pressure = function(storm_data_list) {
     names(df)[1] <- "Storm_Name"
     names(df)[2] <- "MinPressure"
     df$MinPressure <- as.numeric(df$MinPressure)
+    
+    # if parameters for low of range specified
+    if (missing(low) == FALSE) {
+        
+        # remove out of range values from dataframe
+        df <- filter(df, MinPressure >= low)
+    }
+    
+    # if parameters for high of range specified
+    if (missing(high) == FALSE) {
+        
+        # remove out of range values from dataframe
+        df <- filter(df, MinPressure <= high)
+    }
     
     # sort in ascending order and return the ordered list of names
     df <- df[order(df$MinPressure), ]
