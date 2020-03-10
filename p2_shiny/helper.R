@@ -468,7 +468,6 @@ get_storms_landfall = function(storm_data_list) {
     result = list()
     i = 1
     for (storm_data in storm_data_list) {
-        # check wether the year is at least what was given
         if (any(storm_data$Record_ID == 'L')) {
             result[[i]] = storm_data
             i = i + 1
@@ -477,6 +476,19 @@ get_storms_landfall = function(storm_data_list) {
     result
 }
 
+        
+# get a table of hurricanes which DID NOT make landfall for a given data set
+get_storms_no_landfall = function(storm_data_list) {
+    result = list()
+    i = 1
+    for (storm_data in storm_data_list) {
+        if (all(storm_data$Record_ID != 'L')) {
+            result[[i]] = storm_data
+            i = i + 1
+        }
+    }
+    result
+}
 
 colors = c(
     "red",
