@@ -113,6 +113,8 @@ make_unique_names = function(storm_data_list) {
     result
 }
 
+
+
 ########################## FUNCTIONS TO HELP IN PLOTTING #####################################
 ########################## FUNCTIONS TO HELP IN PLOTTING #####################################
 
@@ -324,6 +326,22 @@ get_all_storm_days = function(storm_data_list) {
     strftime(result, format = "%m/%d/%Y")
 }
 
+# return both years and days from the list in descending order
+get_all_days_and_years = function(storm_data_list){
+    years = vector()
+    days = vector()
+    class(days) = "Date"
+    
+    for (storm_data in storm_data_list){
+        days = c(days, unique(as.Date(storm_data$Timestamp)))
+        years = c(years, unique(year(as.Date(storm_data$Timestamp))))
+    }
+    result = list(years = sort(unique(years), decreasing = TRUE), 
+                  days = strftime(sort(unique(days), decreasing = TRUE), format = "%m/%d/%Y"))
+    result
+}
+
+
 # get a table of top 10 fastest hurricanes and their max speed for a given data set
 get_top_10_storms = function(storm_data_list) {
     indices = list() # keep track of indices of the storms in the list
@@ -377,7 +395,7 @@ get_storm_names_alphabetically = function(storm_data_list) {
     sort(unlist(get_storm_names(storm_data_list)))
 }
 
-# get a list of all storm names by max speed in optional specified range
+# get a list of all storm names by max speed given low/high
 get_storm_names_max_speed = function(storm_data_list, low, high) {
     table = list()
     i = 1
@@ -411,7 +429,7 @@ get_storm_names_max_speed = function(storm_data_list, low, high) {
     df$Storm_Name
 }
 
-# get a list of all storm names by minimum pressure in optional specified range
+# get a table of hurricanes in order by min pressure for a given data set in pressure range of low to high
 get_storm_names_min_pressure = function(storm_data_list, low, high) {
     table = list()
     i = 1
@@ -444,6 +462,21 @@ get_storm_names_min_pressure = function(storm_data_list, low, high) {
     df <- df[order(df$MinPressure), ]
     df$Storm_Name
 }
+
+# get a table of hurricanes which made landfall for a given data set
+get_storms_landfall = function(storm_data_list) {
+    result = list()
+    i = 1
+    for (storm_data in storm_data_list) {
+        # check wether the year is at least what was given
+        if (any(storm_data$Record_ID == 'L')) {
+            result[[i]] = storm_data
+            i = i + 1
+        }
+    }
+    result
+}
+
 
 colors = c(
     "red",
