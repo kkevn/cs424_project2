@@ -131,9 +131,9 @@ ui = dashboardPage(
                    selectInput(inputId = "storm_order", label = "Order By",
                                choices = c("", "Alphabetically", "Chronologically", "Max Speed", "Min Pressure")),
                    box(title = "Filter Options", width = NULL, status = "info",
-                       radioButtons(inputId = "made_land", label = "Made Landfall", choices = c("True", "False")),
-                       sliderInput(inputId = "max_wind_speed", label = "Max Wind Speed", min = 0, max = 200, value = c(0, 200)),
-                       sliderInput(inputId = "min_pressure", label = "Mininum Pressure", min = 0, max = 200, value = c(0, 200))
+                       radioButtons(inputId = "made_land", label = "Made Landfall", choices = c("True", "False"), selected = character(0)),
+                       sliderInput(inputId = "max_wind_speed", label = "Max Wind Speed", min = 0, max = 185, value = c(0, 185)),
+                       sliderInput(inputId = "min_pressure", label = "Mininum Pressure", min = 0, max = 1024, value = c(0, 1024))
                        )
             ),
             
@@ -154,12 +154,21 @@ ui = dashboardPage(
 
 
 server = function(input, output, session) {
-    shown_names = reactiveVal() # keep track of which names are currently being displayed
+    shown_pacific_names = reactiveVal() # keep track of which names are currently being displayed
+    shown_atlantic_names = reactiveVal() # keep track of which names are currently being displayed
+    shown_combined_names = reactiveVal() # keep track of which names are currently being displayed
+    
+    # should update the combined one
+    combined2018 = get_storms_by_year(combined_data, 2018)
+    combined_names = get_storm_names(combined2018)
+    updateCheckboxGroupInput(session, "combined_storm_names", choices = combined_names, selected = combined_names)
+    shown_combined_names(combined_names)
     
     output$atlantic_map = renderLeaflet({
         atlantic2018 = get_storms_by_year(atlantic_data, 2018)
         atlantic_names = get_storm_names(atlantic2018)
         updateCheckboxGroupInput(session, "atlantic_storm_names", choices = atlantic_names, selected = atlantic_names)
+        shown_atlantic_names(atlantic_names)
         plot_multi_storm_path_by_size(atlantic2018, colors)
     })
     
@@ -167,7 +176,7 @@ server = function(input, output, session) {
         pacific2018 = get_storms_by_year(pacific_data, 2018)
         pacific_names = get_storm_names(pacific2018)
         updateCheckboxGroupInput(session, "pacific_storm_names", choices = pacific_names, selected = pacific_names)
-        shown_names(pacific_names) # update shown names; initially pacific
+        shown_pacific_names(pacific_names)
         plot_multi_storm_path_by_size(pacific2018, colors)
     })
     
@@ -187,15 +196,16 @@ server = function(input, output, session) {
             names_to_show = get_storm_names(pacific_data)
             # don't auto select because there's a lot of names
             updateCheckboxGroupInput(session, "pacific_storm_names", choices = names_to_show)
-            
-            shown_names(names_to_show) # update the shown names
+            shown_pacific_names(names_to_show) # update the shown names
         } else if (input$storm_tab == "atlantic"){
             names_to_show = get_storm_names(atlantic_data)
             # don't auto select because there's a lot of names
             updateCheckboxGroupInput(session, "atlantic_storm_names", choices = names_to_show)
+            shown_atlantic_names(names_to_show)
         } else {  # must be combined tab
             # don't auto select because there's a lot names
             updateCheckboxGroupInput(session, "combined_storm_names", choices = all_storm_names)
+            shown_combined_names(all_storm_names)
         }
     })
     
@@ -204,17 +214,17 @@ server = function(input, output, session) {
         if (input$storm_tab == "pacific"){
             # update and select all
             updateCheckboxGroupInput(session, "pacific_storm_names", choices = pacific_top10_names, selected = pacific_top10_names)
-            shown_names(pacific_top10_names) # update the shown names
+            shown_pacific_names(pacific_top10_names) # update the shown names
             
         } else if (input$storm_tab == "atlantic"){
             # update and select all
             updateCheckboxGroupInput(session, "atlantic_storm_names", choices = atlantic_top10_names, selected = atlantic_top10_names)
-            shown_names(atlantic_top10_names) # update the shown names
+            shown_atlantic_names(atlantic_top10_names) # update the shown names
             
         } else {  # must be combined tab
             # update and select all
             updateCheckboxGroupInput(session, "combined_storm_names", choices = combined_top10_names, selected = combined_top10_names)
-            shown_names(combined_top10_names) # update the shown names
+            shown_combined_names(combined_top10_names) # update the shown names
         }
     })
     
@@ -222,13 +232,13 @@ server = function(input, output, session) {
     observeEvent(input$check_all_button, {
         if (input$storm_tab == "pacific"){
             updateCheckboxGroupInput(session, "pacific_storm_names", 
-                                     choices = shown_names(), selected = shown_names())
+                                     choices = shown_pacific_names(), selected = shown_pacific_names())
         } else if (input$storm_tab == "atlantic"){
             updateCheckboxGroupInput(session, "atlantic_storm_names", 
-                                     choices = shown_names(), selected = shown_names())
+                                     choices = shown_atlantic_names(), selected = shown_atlantic_names())
         } else { # must be combined tab
             updateCheckboxGroupInput(session, "combined_storm_names", 
-                                     choices = shown_names(), selected = shown_names())
+                                     choices = shown_combined_names(), selected = shown_combined_names())
         }
         
     })
@@ -237,17 +247,17 @@ server = function(input, output, session) {
     observeEvent(input$uncheck_all_button, {
         if (input$storm_tab == "pacific"){
             updateCheckboxGroupInput(session, "pacific_storm_names", 
-                                     choices = shown_names())
+                                     choices = shown_pacific_names())
             output$pacific_map = renderLeaflet({leaflet() %>% addTiles()}) # show empty map
             
         } else if (input$storm_tab == "atlantic"){
             updateCheckboxGroupInput(session, "atlantic_storm_names", 
-                                     choices = shown_names())
+                                     choices = shown_atlantic_names())
             output$atlantic_map = renderLeaflet({leaflet() %>% addTiles()}) # show empty map
             
         } else { # must be combined tab
             updateCheckboxGroupInput(session, "combined_storm_names", 
-                                     choices = shown_names())
+                                     choices = shown_combined_names())
             output$atlantic_map = renderLeaflet({leaflet() %>% addTiles()}) # show empty map
             output$pacific_map = renderLeaflet({leaflet() %>% addTiles()}) # show empty map
         }
@@ -281,33 +291,42 @@ server = function(input, output, session) {
                     input$pacific_storm_names 
                 else if (tab == "atlantic") 
                     input$atlantic_storm_names 
-                else input$combined_storm_names
+                else 
+                    input$combined_storm_names
+            
+            shown_names = 
+                if (tab == "pacific")
+                    shown_pacific_names()
+                else if (tab == "atlantic")
+                    shown_atlantic_names()
+                else
+                    shown_combined_names()
             
             if (order_by == "Alphabetically"){
                 updateCheckboxGroupInput(session, checkbox_group_name, 
                                          choices = get_storm_names_alphabetically(
-                                             get_storms_by_name(data , shown_names())
+                                             get_storms_by_name(data , shown_names)
                                              ),
                                          selected = selected_names
                                          )
             } else if (order_by == "Chronologically"){
                 updateCheckboxGroupInput(session, checkbox_group_name, 
                                          choices = get_storm_names_chronologically(
-                                             get_storms_by_name(data , shown_names())
+                                             get_storms_by_name(data , shown_names)
                                          ),
                                          selected = selected_names
                 )
             } else if (order_by == "Max Speed"){
                 updateCheckboxGroupInput(session, checkbox_group_name, 
                                          choices = get_storm_names_max_speed(
-                                             get_storms_by_name(data , shown_names())
+                                             get_storms_by_name(data , shown_names)
                                             ),
                                          selected = selected_names
                                         )
             } else if (order_by == "Min Pressure"){
                 updateCheckboxGroupInput(session, checkbox_group_name, 
                                          choices = get_storm_names_min_pressure(
-                                             get_storms_by_name(data , shown_names())
+                                             get_storms_by_name(data , shown_names)
                                          ),
                                          selected = selected_names
                 )
@@ -316,6 +335,121 @@ server = function(input, output, session) {
         
     }) # no need to update shown names because they are the same; just changing the order
   
+    
+    # filter hurricanes if they made land; must check which tab is currently shown
+    observeEvent(input$made_land, {
+        tab = input$storm_tab 
+        checkbox_group_name = 
+            if (tab == "pacific") 
+                "pacific_storm_names" 
+        else if (tab == "atlantic") 
+            "atlantic_storm_names" 
+        else 
+            "combined_storm_names"
+        
+        data = if (tab == "pacific") 
+            pacific_data 
+        else if (tab == "atlantic") 
+            atlantic_data 
+        else 
+            combined_data
+        
+        shown_names = 
+            if (tab == "pacific")
+                shown_pacific_names()
+            else if (tab == "atlantic")
+                shown_atlantic_names()
+            else
+                shown_combined_names()
+        
+        if (input$made_land == "True"){
+            made_land_storms = get_storms_landfall(get_storms_by_name(data ,shown_names))
+            made_land_names = get_storm_names(made_land_storms)
+            
+            updateCheckboxGroupInput(session, checkbox_group_name, choices = shown_names, selected = made_land_names)
+        } else if (input$made_land == "False"){
+            made_no_land_storms = get_storms_no_landfall(get_storms_by_name(data ,shown_names))
+            made_no_land_names = get_storm_names(made_no_land_storms)
+            
+            updateCheckboxGroupInput(session, checkbox_group_name, choices = shown_names, selected = made_no_land_names)
+        }
+    })
+    
+    
+    # filter storms within a given range of max wind speed; must check which tab is currently shown
+    observeEvent(input$max_wind_speed,  {
+        # print("In max speed")
+        tab = input$storm_tab 
+        checkbox_group_name = 
+            if (tab == "pacific") 
+                "pacific_storm_names" 
+            else if (tab == "atlantic") 
+                "atlantic_storm_names" 
+            else 
+                "combined_storm_names"
+        
+            data = if (tab == "pacific") 
+                pacific_data 
+            else if (tab == "atlantic") 
+                atlantic_data 
+            else 
+                combined_data
+            
+            shown_names = 
+                if (tab == "pacific")
+                    shown_pacific_names()
+                else if (tab == "atlantic")
+                    shown_atlantic_names()
+                else
+                    shown_combined_names()
+            
+            low = input$max_wind_speed[1]
+            high = input$max_wind_speed[2]
+            
+            storms_within_speed_range = get_storm_names_max_speed(get_storms_by_name(data, shown_names), low, high)
+            
+            updateCheckboxGroupInput(session, checkbox_group_name, choices = shown_names, selected = storms_within_speed_range)
+        
+    })
+    
+    # filter storms within a given range of min pressure; must check which tab is currently shown
+    observeEvent(input$min_pressure,  {
+        # print("In min pressure")
+        tab = input$storm_tab 
+        checkbox_group_name = 
+            if (tab == "pacific") 
+                "pacific_storm_names" 
+            else if (tab == "atlantic") 
+                "atlantic_storm_names" 
+            else 
+                "combined_storm_names"
+        
+        data = 
+            if (tab == "pacific") 
+            pacific_data 
+            else if (tab == "atlantic") 
+                atlantic_data 
+            else 
+                combined_data
+        
+        shown_names = 
+            if (tab == "pacific")
+                shown_pacific_names()
+            else if (tab == "atlantic")
+                shown_atlantic_names()
+            else
+                shown_combined_names()
+        
+        low = input$min_pressure[1]
+        high = input$min_pressure[2]
+        
+        
+        storms_within_pressure_range = get_storm_names_min_pressure(get_storms_by_name(data, shown_names), low, high)
+        
+        updateCheckboxGroupInput(session, checkbox_group_name, choices = shown_names, selected = storms_within_pressure_range)
+        
+    })
+    
     
     
     # when year chosen, only shown storms from that year
@@ -340,11 +474,27 @@ server = function(input, output, session) {
                     get_storms_by_year(combined_data, input$years)
             
             names = get_storm_names(year_storms)
-            shown_names(names) # update shown names
+            
+            # update shown names
+            if (tab == "pacific")
+                shown_pacific_names(names)
+            else if (tab == "atlantic")
+                shown_atlantic_names(names)
+            else
+                shown_combined_names(names)
+            
+            # get the values
+            shown_names = 
+                if (tab == "pacific")
+                    shown_pacific_names()
+                else if (tab == "atlantic")
+                    shown_atlantic_names()
+                else
+                    shown_combined_names()
             
             # autocheck all
             updateCheckboxGroupInput(session, checkbox_group_name, 
-                                     choices = shown_names(), selected = shown_names())
+                                     choices = shown_names, selected = shown_names)
         }
     })
     
@@ -369,11 +519,27 @@ server = function(input, output, session) {
                     get_storms_by_day(combined_data, input$days)
             
             names = get_storm_names(day_storms)
-            shown_names(names) # update shown names
+           
+            # update shown names
+            if (tab == "pacific")
+                shown_pacific_names(names)
+            else if (tab == "atlantic")
+                shown_atlantic_names(names)
+            else
+                shown_combined_names(names)
+            
+            # get the values
+            shown_names = 
+                if (tab == "pacific")
+                    shown_pacific_names()
+            else if (tab == "atlantic")
+                shown_atlantic_names()
+            else
+                shown_combined_names()
             
             # autocheck all
             updateCheckboxGroupInput(session, checkbox_group_name, 
-                                     choices = shown_names(), selected = shown_names())
+                                     choices = shown_names, selected = shown_names)
         }
     })
     
@@ -387,6 +553,8 @@ server = function(input, output, session) {
     
     observeEvent(input$atlantic_storm_names, {
         storms_to_plot = get_storms_by_name(atlantic_data, input$atlantic_storm_names)
+        # print(input$atlantic_storm_names)
+        # print("**********************************")
         output$atlantic_map = renderLeaflet({
             plot_multi_storm_path_by_size(storms_to_plot, colors)
         })
@@ -403,14 +571,24 @@ server = function(input, output, session) {
                 atlantic_storm_names = c(atlantic_storm_names, storm_name)
             }
         }
+        
+        print("PACIFIC: ")
+        print(pacific_storm_names)
+        print("ATLANTIC: ")
+        print(atlantic_storm_names)
+        print("********************************")
         output$pacific_map = renderLeaflet({
             plot_multi_storm_path_by_size(get_storms_by_name(pacific_data, pacific_storm_names), colors)
         })
         output$atlantic_map = renderLeaflet({
+            # print(atlantic_storm_names)
+            # print(pacific_storm_names)
+            # print("***********************************************************")
             plot_multi_storm_path_by_size(get_storms_by_name(atlantic_data, atlantic_storm_names), colors)
         })
     })
     
+
     # overview graph
     output$overview <- renderPlot({
         ggplot(binded_rows, aes(x = year(binded_rows$Timestamp))) + 
@@ -422,4 +600,6 @@ server = function(input, output, session) {
 
 shinyApp(ui=ui, server=server)
 
+# for nonexistent names, check for order/filter (might leave alone)
+# show empty map when filter shows nothing
 # only update maps when necessary
