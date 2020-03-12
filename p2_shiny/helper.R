@@ -324,10 +324,12 @@ get_storm_names_min_pressure_table = function(storm_data_list) {
 # make a graph for a single year's categories; assumes storm_data_list contains all storms from the same year
 # year argument is just to display the graph's title
 graph_category_counts = function(storm_data_list, year){
-    category_map = hashmap(0:5, c(0, 0, 0, 0, 0, 0)) # to count how many per category
+    category_map = hashmap(1:5, c(0, 0, 0, 0, 0)) # to count how many per category
     for(storm_data in storm_data_list){
         for(category in storm_data$Category){
-            category_map[[category]] = category_map[[category]] + 1
+            if (category != 0){
+                category_map[[category]] = category_map[[category]] + 1
+            }
         }
     }
     table = data.frame(category = category_map$keys(), count = as.integer(category_map$values()))
@@ -336,7 +338,7 @@ graph_category_counts = function(storm_data_list, year){
         geom_bar(stat = "identity", fill = "steelblue") + 
         labs(title = paste("Storm Categories: ", year)) +
         xlab("Category") + ylab("Count") +
-        scale_x_continuous(breaks=0:5)
+        scale_x_continuous(breaks=1:5)
 }
 
 
