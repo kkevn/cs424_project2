@@ -123,14 +123,14 @@ ui = dashboardPage(
             column(2,
                    tabsetPanel(id = "storm_tab", type = "tabs",
                                tabPanel(value = "pacific", title = "Pacific", 
-                                        div(style='height:400px; width:350px; overflow: scroll', 
+                                        div(style='height:400px; width:300px; overflow: scroll', 
                                             checkboxGroupInput(inputId = "pacific_storm_names", 
                                                            choices =c(""), label = ""
                                                 )
                                             )
                                ),
                                tabPanel(value = "atlantic", title = "Atlantic", 
-                                        div(style='height:400px; width:350px; overflow: scroll',
+                                        div(style='height:400px; width:300px; overflow: scroll',
                                             checkboxGroupInput(inputId = "atlantic_storm_names", 
                                                            choices =c(""), label = ""
                                             )
