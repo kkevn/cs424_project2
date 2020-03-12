@@ -97,26 +97,50 @@ ui = dashboardPage(
     
     dashboardBody(
         fluidRow(
-            column(6, box(title = "Pacific Storms", width = NULL, status = "primary")),
-            column(6, box(title = "Atlantic Storms", width = NULL, status = "primary")),
-            column(6, leafletOutput(outputId = "pacific_map")),
-            column(6, leafletOutput(outputId = "atlantic_map")), # empty space to store the bar graph
+            column(4, box(title = "Hurricanes Since 2015", solidHeader = TRUE, 
+                          width = NULL, status = "primary", style = "font-size:150%",
+                              plotOutput("overview")
+                        )
+            ),
+            column(4, box(title = "Pacific Hurricane Categories", width = NULL, status = "primary", 
+                          plotOutput("pacific_category_counts")
+                          )
+                   ),
+            column(4, box(title = "Atlantic Hurricane Categories", width = NULL, status = "primary",
+                          plotOutput("atlantic_category_counts")
+                          )
+                   ),
+            column(6, box(title = "Max Wind Speed", width = NULL, status = "primary",
+                          plotOutput("max_wind_speed_graph")
+                          )
+                   ),
+            column(6, box(title = "Min Pressure", width = NULL, status = "primary",
+                          plotOutput("min_pressure_graph")
+                          )
+                   ),
+            
             column(12, box(title = "Pacitic and Atlantic Storms", width = NULL, status = "info")),
             column(2,
                    tabsetPanel(id = "storm_tab", type = "tabs",
                                tabPanel(value = "pacific", title = "Pacific", 
-                                        checkboxGroupInput(inputId = "pacific_storm_names", 
+                                        div(style='height:400px; width:350px; overflow: scroll', 
+                                            checkboxGroupInput(inputId = "pacific_storm_names", 
                                                            choices =c(""), label = ""
-                                        )
+                                                )
+                                            )
                                ),
                                tabPanel(value = "atlantic", title = "Atlantic", 
-                                        checkboxGroupInput(inputId = "atlantic_storm_names", 
+                                        div(style='height:400px; width:350px; overflow: scroll',
+                                            checkboxGroupInput(inputId = "atlantic_storm_names", 
                                                            choices =c(""), label = ""
+                                            )
                                         )
                                ),
                                tabPanel(value = "combined", title = "Combined", 
-                                        checkboxGroupInput(inputId = "combined_storm_names", 
+                                        div(style='height:400px; width:350px; overflow: scroll',
+                                            checkboxGroupInput(inputId = "combined_storm_names", 
                                                            choices =c(""), label = ""
+                                            )
                                         )
                                )
                    ) # end tabsetPanel
@@ -130,7 +154,7 @@ ui = dashboardPage(
                    
                    selectInput(inputId = "storm_order", label = "Order By",
                                choices = c("", "Alphabetically", "Chronologically", "Max Speed", "Min Pressure")),
-                   box(title = "Filter Options", width = NULL, status = "info",
+                   box(title = "Filter Options", width = NULL, status = "info", solidHeader = TRUE,
                        radioButtons(inputId = "made_land", label = "Made Landfall", choices = c("True", "False"), selected = character(0)),
                        sliderInput(inputId = "max_wind_speed", label = "Max Wind Speed", min = 0, max = 185, value = c(0, 185)),
                        sliderInput(inputId = "min_pressure", label = "Mininum Pressure", min = 0, max = 1024, value = c(0, 1024))
@@ -138,15 +162,27 @@ ui = dashboardPage(
             ),
             
             column(2, offset = 1,
-                   selectInput(inputId = "years", label = "Year", choices = c("", days_and_years$years)), # fix for all years
-                   selectInput(inputId = "days", label = "Day", choices = c("", days_and_years$days)) # fix for all days
+                   box(title = "Show Storms By", width = NULL, status = "info", solidHeader = TRUE,
+                    selectInput(inputId = "years", label = "Year", choices = days_and_years$years), 
+                    selectInput(inputId = "days", label = "Day", choices = c("", days_and_years$days))
+                    ),
+                   box(title = "Map Style", width = NULL, status = "info", solidHeader = TRUE, 
+                       radioButtons(inputId = "map_style", label = "", 
+                                    choices = c(providers$Esri.WorldStreetMap, providers$OpenTopoMap, providers$Esri.WorldImagery),
+                                    selected = providers$Esri.WorldStreetMap
+                                    )
+                       )
             ),
-            
-            column(3,
-                box(title = "Overview Graph", solidHeader = TRUE, status = "primary", width = 14,
-                    plotOutput("overview", height = 200), style = "font-size:150%")
-                    # remove above span line and replace with plot
-                )
+            column(5, 
+                   box(title = "Pacific Storms", width = NULL, status = "info",
+                       leafletOutput(outputId = "pacific_map")
+                       ),
+                   
+                   box(title = "Atlantic Storms", width = NULL, status = "info",
+                       leafletOutput(outputId = "atlantic_map")
+                   )
+            )
+                
         ) # end fluidRow
         
     ) # end dashboardBody
@@ -154,31 +190,30 @@ ui = dashboardPage(
 
 
 server = function(input, output, session) {
+    
     shown_pacific_names = reactiveVal() # keep track of which names are currently being displayed
     shown_atlantic_names = reactiveVal() # keep track of which names are currently being displayed
     shown_combined_names = reactiveVal() # keep track of which names are currently being displayed
     
+    
+    
     # should update the combined one
     combined2018 = get_storms_by_year(combined_data, 2018)
     combined_names = get_storm_names(combined2018)
-    updateCheckboxGroupInput(session, "combined_storm_names", choices = combined_names, selected = combined_names)
+    
+    atlantic2018 = get_storms_by_year(atlantic_data, 2018)
+    atlantic_names = get_storm_names(atlantic2018)
+    
+    pacific2018 = get_storms_by_year(pacific_data, 2018)
+    pacific_names = get_storm_names(pacific2018)
+    
+    shown_pacific_names(pacific_names)
+    shown_atlantic_names(atlantic_names)
     shown_combined_names(combined_names)
     
-    output$atlantic_map = renderLeaflet({
-        atlantic2018 = get_storms_by_year(atlantic_data, 2018)
-        atlantic_names = get_storm_names(atlantic2018)
-        updateCheckboxGroupInput(session, "atlantic_storm_names", choices = atlantic_names, selected = atlantic_names)
-        shown_atlantic_names(atlantic_names)
-        plot_multi_storm_path_by_size(atlantic2018, colors)
-    })
-    
-    output$pacific_map = renderLeaflet({
-        pacific2018 = get_storms_by_year(pacific_data, 2018)
-        pacific_names = get_storm_names(pacific2018)
-        updateCheckboxGroupInput(session, "pacific_storm_names", choices = pacific_names, selected = pacific_names)
-        shown_pacific_names(pacific_names)
-        plot_multi_storm_path_by_size(pacific2018, colors)
-    })
+    # initially, only pacific is populated; do the rest
+    updateCheckboxGroupInput(session, "atlantic_storm_names", choices = atlantic_names, selected = atlantic_names)
+    updateCheckboxGroupInput(session, "combined_storm_names", choices = combined_names, selected = combined_names)
     
     observeEvent(input$about_info, {
         showModal(
@@ -248,18 +283,18 @@ server = function(input, output, session) {
         if (input$storm_tab == "pacific"){
             updateCheckboxGroupInput(session, "pacific_storm_names", 
                                      choices = shown_pacific_names())
-            output$pacific_map = renderLeaflet({leaflet() %>% addTiles()}) # show empty map
+            output$pacific_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
             
         } else if (input$storm_tab == "atlantic"){
             updateCheckboxGroupInput(session, "atlantic_storm_names", 
                                      choices = shown_atlantic_names())
-            output$atlantic_map = renderLeaflet({leaflet() %>% addTiles()}) # show empty map
+            output$atlantic_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
             
         } else { # must be combined tab
             updateCheckboxGroupInput(session, "combined_storm_names", 
                                      choices = shown_combined_names())
-            output$atlantic_map = renderLeaflet({leaflet() %>% addTiles()}) # show empty map
-            output$pacific_map = renderLeaflet({leaflet() %>% addTiles()}) # show empty map
+            output$atlantic_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
+            output$pacific_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
         }
         
     })
@@ -455,7 +490,6 @@ server = function(input, output, session) {
     # when year chosen, only shown storms from that year
     # must check which tab is currently shown to show the correct names
     observeEvent(input$years, {
-        if (input$years != ""){
             tab = input$storm_tab
             checkbox_group_name = 
                 if (tab == "pacific") 
@@ -495,7 +529,57 @@ server = function(input, output, session) {
             # autocheck all
             updateCheckboxGroupInput(session, checkbox_group_name, 
                                      choices = shown_names, selected = shown_names)
-        }
+            
+            # have to do for both of them because the wind and pressure graphs show both oceans regardless of what tab
+            atlantic_year = get_storms_by_year(atlantic_data, input$years)
+            pacific_year = get_storms_by_year(pacific_data, input$years)
+            
+            # user sees all years; pacific doesn't go as far back as atlantic so check
+            if (length(pacific_year) == 0) { # can only show atlantic
+                atlantic_speed_table = get_storm_names_max_speed_table(atlantic_year)
+                atlantic_pressure_table = get_storm_names_min_pressure_table(atlantic_year)
+                
+                output$min_pressure_graph = renderPlot({
+                    ggplot(data = atlantic_pressure_table, aes(x = Timestamp, y = MinPressure)) +
+                        geom_line() + geom_point() + 
+                        labs(xlab("Day"), ylab("Min Pressure"), title = paste("Min Pressure Over ", input$years, "(Atlantic)"))
+                })
+                
+                output$max_wind_speed_graph = renderPlot({
+                    ggplot(data = atlantic_speed_table, aes(x = Timestamp, y = TopSpeed)) +
+                    geom_line() + geom_point() + 
+                    labs(xlab("Day"), ylab("Max Wind Speed"), title = paste("Max Wind Speed Over ", input$years, "(Atlantic)"))
+                })
+                
+            } else { # both can be displayed
+                atlantic_speed_table = get_storm_names_max_speed_table(atlantic_year) %>%  mutate(ocean = "ATLANTIC")
+                pacific_speed_table = get_storm_names_max_speed_table(pacific_year)  %>% mutate(ocean = "PACIFIC")
+                combined_speed_table = rbind(atlantic_speed_table, pacific_speed_table)
+                
+                atlantic_pressure_table = get_storm_names_min_pressure_table(atlantic_year) %>%  mutate(ocean = "ATLANTIC")
+                pacific_pressure_table = get_storm_names_min_pressure_table(pacific_year)  %>% mutate(ocean = "PACIFIC")
+                combined_pressure_table = rbind(atlantic_pressure_table, pacific_pressure_table)
+                
+                output$max_wind_speed_graph = renderPlot({
+                    ggplot(data = combined_speed_table, aes(x = Timestamp, y = TopSpeed)) +
+                        geom_line(aes(color = ocean)) + geom_point(aes(color = ocean)) + 
+                        labs(xlab("Day"), ylab("Max Wind Speed"), title = paste("Max Wind Speed Over ", input$years))
+                })
+                
+                output$min_pressure_graph = renderPlot({
+                    ggplot(data = combined_pressure_table, aes(x = Timestamp, y = MinPressure)) +
+                        geom_line(aes(color = ocean)) + geom_point(aes(color = ocean)) + 
+                        labs(xlab("Day"), ylab("Min Pressure"), title = paste("Min Pressure Over ", input$years))
+                })
+            }
+            
+            output$pacific_category_counts = renderPlot({
+                graph_category_counts(pacific_year, input$years)
+            })
+            
+            output$atlantic_category_counts = renderPlot({
+                graph_category_counts(atlantic_year, input$years)
+            })
     })
     
     # when day chosen, only shown storms from that day
@@ -547,7 +631,7 @@ server = function(input, output, session) {
         # for some reason, last uncheck doesn't trigger observeEvent
         storms_to_plot = get_storms_by_name(pacific_data, input$pacific_storm_names)
         output$pacific_map = renderLeaflet({
-            plot_multi_storm_path_by_size(storms_to_plot, colors)
+            plot_multi_storm_path_by_size(storms_to_plot, colors, input$map_style)
         })
     })
     
@@ -556,7 +640,7 @@ server = function(input, output, session) {
         # print(input$atlantic_storm_names)
         # print("**********************************")
         output$atlantic_map = renderLeaflet({
-            plot_multi_storm_path_by_size(storms_to_plot, colors)
+            plot_multi_storm_path_by_size(storms_to_plot, colors, input$map_style)
         })
     })
     
@@ -572,20 +656,21 @@ server = function(input, output, session) {
             }
         }
         
-        print("PACIFIC: ")
-        print(pacific_storm_names)
-        print("ATLANTIC: ")
-        print(atlantic_storm_names)
-        print("********************************")
-        output$pacific_map = renderLeaflet({
-            plot_multi_storm_path_by_size(get_storms_by_name(pacific_data, pacific_storm_names), colors)
-        })
-        output$atlantic_map = renderLeaflet({
-            # print(atlantic_storm_names)
-            # print(pacific_storm_names)
-            # print("***********************************************************")
-            plot_multi_storm_path_by_size(get_storms_by_name(atlantic_data, atlantic_storm_names), colors)
-        })
+        if (length(pacific_storm_names) > 0){
+            output$pacific_map = renderLeaflet({
+                plot_multi_storm_path_by_size(get_storms_by_name(pacific_data, pacific_storm_names), colors, input$map_style)
+            })
+        } else {
+            output$pacific_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
+        }
+        
+        if (length(atlantic_storm_names) > 0){
+            output$atlantic_map = renderLeaflet({
+                plot_multi_storm_path_by_size(get_storms_by_name(atlantic_data, atlantic_storm_names), colors, input$map_style)
+            })
+        } else {
+            output$atlantic_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
+        }
     })
     
 

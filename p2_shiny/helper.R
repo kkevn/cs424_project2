@@ -2,8 +2,13 @@
 ########################## FUNCTIONS TO HELP IN PLOTTING #####################################
 
 # plot multiple storm paths on a map by their size
-plot_multi_storm_path_by_size = function(storm_data_list, color_list) {
-    map_object = leaflet() %>% addTiles()
+plot_multi_storm_path_by_size = function(storm_data_list, color_list, map_style) {
+    map_object = leaflet() %>% addProviderTiles(map_style)
+    
+    if (length(storm_data_list) == 0 ){
+        return (map_object)
+    }
+    
     for(i in 1: length(storm_data_list)) {
         storm_data = storm_data_list[[i]]
         color = color_list[i]
@@ -266,7 +271,9 @@ get_storm_names_max_speed_table = function(storm_data_list) {
     table = list()
     i = 1
     for (storm_data in storm_data_list) {
-        table[[i]] = c(storm_data$Storm_Name[1], strftime(storm_data$Timestamp, "%m/%d/%Y")[2], max(storm_data$Speed))
+        top_speed = max(storm_data$Speed)
+        top_speed_index = which(storm_data$Speed == top_speed)
+        table[[i]] = c(storm_data$Storm_Name[1], strftime(storm_data$Timestamp[top_speed_index], "%m/%d/%Y")[2], top_speed)
         i = i + 1
     }
     
@@ -280,6 +287,56 @@ get_storm_names_max_speed_table = function(storm_data_list) {
     # sort in descending order and return the ordered list of names
     df <- df[order(-df$TopSpeed), ]
     df
+}
+
+
+# get a table of hurricanes in order by min pressure for a given data set (UPDATE IN GIT)
+get_storm_names_min_pressure_table = function(storm_data_list) {
+    table = list()
+    i = 1
+    for (storm_data in storm_data_list) {
+        storm_data$Pressure = 
+            to_vec(
+                for (pressure in storm_data$Pressure) 
+                    if (pressure < 0)
+                        0
+                else 
+                    pressure
+            )
+        min_pressure = min(storm_data$Pressure)
+        min_pressure_index = which(storm_data$Pressure == min_pressure)[1] # just need first one even if multiple matches
+        table[[i]] = c(storm_data$Storm_Name[1], strftime(storm_data$Timestamp[min_pressure_index], format = "%m/%d/%Y"), min_pressure)
+        i = i + 1
+    }
+    
+    # build dataframe of each hurricane and its min pressure
+    df <- data.frame(matrix(unlist(table), nrow = length(table), byrow = T), stringsAsFactors = FALSE)
+    names(df)[1] <- "Storm_Name"
+    names(df)[2] <- "Timestamp"
+    names(df)[3] <- "MinPressure"
+    df$MinPressure<- as.numeric(df$MinPressure)
+    df$Timestamp <- parse_date_time(df$Timestamp, "%m/%d/%Y", tz = 'America/Chicago', quiet = TRUE)    
+    # sort in ascending order and return the ordered list of names
+    df <- df[order(df$MinPressure), ]
+    df
+}
+
+# make a graph for a single year's categories; assumes storm_data_list contains all storms from the same year
+# year argument is just to display the graph's title
+graph_category_counts = function(storm_data_list, year){
+    category_map = hashmap(0:5, c(0, 0, 0, 0, 0, 0)) # to count how many per category
+    for(storm_data in storm_data_list){
+        for(category in storm_data$Category){
+            category_map[[category]] = category_map[[category]] + 1
+        }
+    }
+    table = data.frame(category = category_map$keys(), count = as.integer(category_map$values()))
+    
+    ggplot(data = table, aes(x = category, y = count)) +
+        geom_bar(stat = "identity", fill = "steelblue") + 
+        labs(title = paste("Storm Categories: ", year)) +
+        xlab("Category") + ylab("Count") +
+        scale_x_continuous(breaks=0:5)
 }
 
 
