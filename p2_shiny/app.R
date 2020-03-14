@@ -77,9 +77,9 @@ days_and_years = get_all_days_and_years(combined_data)
 
 ui = dashboardPage(
     
-    dashboardHeader(title = "Atlantic & Pacific Hurricane Data"),
+    dashboardHeader(title = "Best Track Data (HURDAT2)", titleWidth = 300),
     
-    dashboardSidebar(disable = FALSE, collapsed = FALSE,
+    dashboardSidebar(disable = FALSE, collapsed = FALSE, width = 250,
                      sidebarMenu(
                          # add space to sidebar
                          menuItem("", tabName = "cheapBlankSpace", icon = NULL),
@@ -92,95 +92,115 @@ ui = dashboardPage(
                          menuItem("", tabName = "cheapBlankSpace", icon = NULL)),
                      
                      # about button
-                     actionButton("about_info", "About", width = 200)
+                     actionButton("about_info", "About", width = 220),
+                     
+                     sidebarMenu(
+                       menuItem("", tabName = "cheapBlankSpace", icon = NULL),
+                       menuItem("", tabName = "cheapBlankSpace", icon = NULL),
+                       menuItem("Make Selections:", tabName = "cheapBlankSpace", icon = NULL)),
+                     
+                     # list of inputs in sidebar
+                     tabsetPanel(id = "inputs_tab", type = "tabs",
+                                 tabPanel(value = "date_inputs", title = "Time", 
+                                          div(style='height:300px; width:250px;', 
+                                              sidebarMenu(
+                                                menuItem("", tabName = "cheapBlankSpace", icon = NULL)),
+                                              selectInput(inputId = "years", label = "Select a Year", choices = days_and_years$years),
+                                              sidebarMenu(
+                                                menuItem("", tabName = "cheapBlankSpace", icon = NULL)),
+                                              selectInput(inputId = "days", label = "Select a Date", choices = c("", days_and_years$days))
+                                          )
+                                 ),
+                                 tabPanel(value = "data_inputs", title = "Values", 
+                                          div(style='height:300px; width:250px;',
+                                              radioButtons(inputId = "made_land", label = "Made Landfall?", choices = c("True", "False"), inline = TRUE, selected = character(0)),
+                                              sliderInput(inputId = "max_wind_speed", label = "Wind Speed Range (in knots)", min = 0, max = 185, value = c(0, 185)),
+                                              sliderInput(inputId = "min_pressure", label = "Pressure Range (in millibars)", min = 0, max = 1024, value = c(0, 1024))
+                                          )
+                                 ),
+                                 tabPanel(value = "sort_inputs", title = "Filter", 
+                                          div(style='height:300px; width:250px;',
+                                              sidebarMenu(
+                                                menuItem("", tabName = "cheapBlankSpace", icon = NULL)),
+                                              actionButton(inputId = "show_all_names_button", label = "Show All", width = 220),
+                                              actionButton(inputId = "show_top10_names_button", label = "Show Top 10", width = 220),
+                                              actionButton(inputId = "check_all_button", label = "Select All", width = 220),
+                                              actionButton(inputId = "uncheck_all_button", label = "Deselect All", width = 220),
+                                              sidebarMenu(
+                                                menuItem("", tabName = "cheapBlankSpace", icon = NULL)),
+                                              selectInput(inputId = "storm_order", label = "Order by",
+                                                          choices = c("", "Alphabetically", "Chronologically", "Max Speed", "Min Pressure"))
+                                          )
+                                 )
+                     ), # end tabsetPanel
+                     
+                     sidebarMenu(
+                       menuItem("", tabName = "cheapBlankSpace", icon = NULL),
+                       menuItem("Hurricane Lists:", tabName = "cheapBlankSpace", icon = NULL)),
+
+                     # list of hurricanes in sidebar
+                     tabsetPanel(id = "storm_tab", type = "tabs",
+                                 tabPanel(value = "atlantic", title = "Atlantic", 
+                                          div(style='height:500px; width:250px; overflow: scroll',
+                                              checkboxGroupInput(inputId = "atlantic_storm_names", 
+                                                                 choices =c(""), label = ""
+                                              )
+                                          )
+                                 ),
+                                 tabPanel(value = "pacific", title = "Pacific", 
+                                          div(style='height:500px; width:250px; overflow: scroll', 
+                                              checkboxGroupInput(inputId = "pacific_storm_names", 
+                                                                 choices =c(""), label = ""
+                                              )
+                                          )
+                                 ),
+                                 tabPanel(value = "combined", title = "Combined", 
+                                          div(style='height:500px; width:250px; overflow: scroll',
+                                              checkboxGroupInput(inputId = "combined_storm_names", 
+                                                                 choices =c(""), label = ""
+                                              )
+                                          )
+                                 )
+                     ) # end tabsetPanel
     ), # end sidebarMenu
     
     dashboardBody(
         fluidRow(
-            column(6, box(title = "Hurricanes Since 2015", solidHeader = TRUE, 
-                          width = NULL, status = "primary", style = "font-size:150%",
-                              plotOutput("overview")
-                        )
+            column(5, 
+                tabBox(
+                  title = "Line Graphs of Speed & Pressure",
+                  id = "speed_pressure_graphs",
+                  width = "200%",
+                  tabPanel("Maximum Speed", plotOutput("max_wind_speed_graph")),
+                  tabPanel("Minimum Pressure", plotOutput("min_pressure_graph"))
+                )
             ),
-            column(6, box(title = "Pacific Hurricane Categories", width = NULL, status = "primary", solidHeader = TRUE, 
-                          plotOutput("category_counts")
-                          )
-                   ),
-            column(6, box(title = "Max Wind Speed", width = NULL, status = "primary",
-                          plotOutput("max_wind_speed_graph")
-                          )
-                   ),
-            column(6, box(title = "Min Pressure", width = NULL, status = "primary",
-                          plotOutput("min_pressure_graph")
-                          )
-                   ),
-            
-            column(12, box(title = "Pacitic and Atlantic Storms", width = NULL, status = "info")),
-            column(2,
-                   tabsetPanel(id = "storm_tab", type = "tabs",
-                               tabPanel(value = "pacific", title = "Pacific", 
-                                        div(style='height:400px; width:300px; overflow: scroll', 
-                                            checkboxGroupInput(inputId = "pacific_storm_names", 
-                                                           choices =c(""), label = ""
-                                                )
-                                            )
-                               ),
-                               tabPanel(value = "atlantic", title = "Atlantic", 
-                                        div(style='height:400px; width:300px; overflow: scroll',
-                                            checkboxGroupInput(inputId = "atlantic_storm_names", 
-                                                           choices =c(""), label = ""
-                                            )
-                                        )
-                               ),
-                               tabPanel(value = "combined", title = "Combined", 
-                                        div(style='height:400px; width:350px; overflow: scroll',
-                                            checkboxGroupInput(inputId = "combined_storm_names", 
-                                                           choices =c(""), label = ""
-                                            )
-                                        )
-                               )
-                   ) # end tabsetPanel
-                 
-            ),
-            column(2,
-                   actionButton(inputId = "show_all_names_button", label = "Show All"),
-                   actionButton(inputId = "show_top10_names_button", label = "Show Top 10"),
-                   actionButton(inputId = "check_all_button", label = "Check All"),
-                   actionButton(inputId = "uncheck_all_button", label = "Uncheck All"),
-                   
-                   selectInput(inputId = "storm_order", label = "Order By",
-                               choices = c("", "Alphabetically", "Chronologically", "Max Speed", "Min Pressure")),
-                   box(title = "Filter Options", width = NULL, status = "info", solidHeader = TRUE,
-                       radioButtons(inputId = "made_land", label = "Made Landfall", choices = c("True", "False"), selected = character(0)),
-                       sliderInput(inputId = "max_wind_speed", label = "Max Wind Speed", min = 0, max = 185, value = c(0, 185)),
-                       sliderInput(inputId = "min_pressure", label = "Mininum Pressure", min = 0, max = 1024, value = c(0, 1024))
-                       )
-            ),
-            
-            column(2, offset = 1,
-                   box(title = "Show Storms By", width = NULL, status = "info", solidHeader = TRUE,
-                    selectInput(inputId = "years", label = "Year", choices = days_and_years$years), 
-                    selectInput(inputId = "days", label = "Day", choices = c("", days_and_years$days))
-                    ),
-                   box(title = "Map Style", width = NULL, status = "info", solidHeader = TRUE, 
-                       radioButtons(inputId = "map_style", label = "", 
-                                    choices = c(providers$Esri.WorldStreetMap, providers$OpenTopoMap, providers$Esri.WorldImagery),
-                                    selected = providers$Esri.WorldStreetMap
-                                    )
-                       )
+            column(2, 
+                   box(title = "Number of Hurricanes/Category in Given Year", width = NULL, status = "primary",
+                       plotOutput("category_counts")
+                   )
             ),
             column(5, 
-                   box(title = "Pacific Storms", width = NULL, status = "info",
-                       leafletOutput(outputId = "pacific_map")
-                       ),
-                   
-                   box(title = "Atlantic Storms", width = NULL, status = "info",
-                       leafletOutput(outputId = "atlantic_map")
-                   )
+                box(title = "Number of Hurricanes/Year since 2005", solidHeader = FALSE, 
+                    width = NULL, status = "primary", style = "font-size:150%",
+                    plotOutput("overview")
+                )
+            )
+      ),
+        fluidRow(
+            
+            column(6, 
+                box(title = "Map of Atlantic Hurricanes", width = NULL, height = 750, status = "info",
+                    leafletOutput(outputId = "atlantic_map", height = 675)
+                )
+            ),
+            column(6, 
+                box(title = "Map of Pacific Hurricanes", width = NULL, height = 750, status = "info",
+                    leafletOutput(outputId = "pacific_map", height = 675)
+                )
             )
                 
         ) # end fluidRow
-        
     ) # end dashboardBody
 )# end dashboardPage
 
@@ -190,7 +210,6 @@ server = function(input, output, session) {
     shown_pacific_names = reactiveVal() # keep track of which names are currently being displayed
     shown_atlantic_names = reactiveVal() # keep track of which names are currently being displayed
     shown_combined_names = reactiveVal() # keep track of which names are currently being displayed
-    
     
     
     # should update the combined one
@@ -279,18 +298,18 @@ server = function(input, output, session) {
         if (input$storm_tab == "pacific"){
             updateCheckboxGroupInput(session, "pacific_storm_names", 
                                      choices = shown_pacific_names())
-            output$pacific_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
+            output$pacific_map = renderLeaflet({leaflet() %>% addProviderTiles(providers$Esri.WorldStreetMap)}) # show empty map
             
         } else if (input$storm_tab == "atlantic"){
             updateCheckboxGroupInput(session, "atlantic_storm_names", 
                                      choices = shown_atlantic_names())
-            output$atlantic_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
+            output$atlantic_map = renderLeaflet({leaflet() %>% addProviderTiles(providers$Esri.WorldStreetMap)}) # show empty map
             
         } else { # must be combined tab
             updateCheckboxGroupInput(session, "combined_storm_names", 
                                      choices = shown_combined_names())
-            output$atlantic_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
-            output$pacific_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
+            output$atlantic_map = renderLeaflet({leaflet() %>% addProviderTiles(providers$Esri.WorldStreetMap)}) # show empty map
+            output$pacific_map = renderLeaflet({leaflet() %>% addProviderTiles(providers$Esri.WorldStreetMap)}) # show empty map
         }
         
     })
@@ -481,8 +500,6 @@ server = function(input, output, session) {
         
     })
     
-    
-    
     # when year chosen, only shown storms from that year
     # must check which tab is currently shown to show the correct names
     observeEvent(input$years, {
@@ -538,14 +555,20 @@ server = function(input, output, session) {
                 output$min_pressure_graph = renderPlot({
                     ggplot(data = atlantic_speed_pressure_table, aes(x = Timestamp, y = MinPressure)) +
                         geom_line() + geom_point() + 
-                        labs(xlab("Day"), ylab("Min Pressure"), title = paste("Min Pressure Over ", input$years, "(Atlantic)"))
+                        labs(x = "Day", y = "Pressure (millibars)", title = paste("Minimum Pressures in ", input$years, "(Atlantic)")) + 
+                        theme(axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 14), 
+                              axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16),
+                              plot.title = element_text(size = 18))
                 })
                 
                 # show max speed graph for atlantic only
                 output$max_wind_speed_graph = renderPlot({
                     ggplot(data = atlantic_speed_pressure_table, aes(x = Timestamp, y = TopSpeed)) +
-                    geom_line() + geom_point() + 
-                    labs(xlab("Day"), ylab("Max Wind Speed"), title = paste("Max Wind Speed Over ", input$years, "(Atlantic)"))
+                      geom_line() + geom_point() + 
+                      labs(x = "Day", y = "Wind Speed (knots)", title = paste("Maximum Wind Speeds in ", input$years, "(Atlantic)")) + 
+                      theme(axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 14), 
+                            axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16),
+                            plot.title = element_text(size = 18))
                 })
                 
             } else { # both can be displayed
@@ -558,20 +581,25 @@ server = function(input, output, session) {
                 output$max_wind_speed_graph = renderPlot({
                     ggplot(data = combined_table, aes(x = Timestamp, y = TopSpeed)) +
                         geom_line(aes(color = ocean)) + geom_point(aes(color = ocean)) + 
-                        labs(xlab("Day"), ylab("Max Wind Speed"), title = paste("Max Wind Speed Over ", input$years))
+                        labs(x = "Day", y = "Wind Speed (knots)", title = paste("Maximum Wind Speeds in ", input$years)) + 
+                        theme(axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 14), 
+                              axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16),
+                              plot.title = element_text(size = 18))
                 })
                 
                 # show min pressure graph for both oceans
                 output$min_pressure_graph = renderPlot({
                     ggplot(data = combined_table, aes(x = Timestamp, y = MinPressure)) +
                         geom_line(aes(color = ocean)) + geom_point(aes(color = ocean)) + 
-                        labs(xlab("Day"), ylab("Min Pressure"), title = paste("Min Pressure Over ", input$years))
+                        labs(x = "Day", y = "Pressure (millibars)", title = paste("Minimum Pressures in ", input$years)) + 
+                        theme(axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 14), 
+                              axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16),
+                              plot.title = element_text(size = 18))
                 })
             }
             
-            
             output$category_counts = renderPlot({
-                graph_category_counts(pacific_year, atlantic_year, input$years) 
+              graph_category_counts(pacific_year, atlantic_year, input$years) 
             })
     })
     
@@ -624,7 +652,7 @@ server = function(input, output, session) {
         # for some reason, last uncheck doesn't trigger observeEvent
         storms_to_plot = get_storms_by_name(pacific_data, input$pacific_storm_names)
         output$pacific_map = renderLeaflet({
-            plot_multi_storm_path_by_size(storms_to_plot, colors, input$map_style)
+            plot_multi_storm_path_by_size(storms_to_plot)
         })
     })
     
@@ -633,7 +661,7 @@ server = function(input, output, session) {
         # print(input$atlantic_storm_names)
         # print("**********************************")
         output$atlantic_map = renderLeaflet({
-            plot_multi_storm_path_by_size(storms_to_plot, colors, input$map_style)
+            plot_multi_storm_path_by_size(storms_to_plot)
         })
     })
     
@@ -651,18 +679,18 @@ server = function(input, output, session) {
         
         if (length(pacific_storm_names) > 0){
             output$pacific_map = renderLeaflet({
-                plot_multi_storm_path_by_size(get_storms_by_name(pacific_data, pacific_storm_names), colors, input$map_style)
+                plot_multi_storm_path_by_size(get_storms_by_name(pacific_data, pacific_storm_names))
             })
         } else {
-            output$pacific_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
+            output$pacific_map = renderLeaflet({leaflet() %>% addProviderTiles(providers$Esri.WorldStreetMap)}) # show empty map
         }
         
         if (length(atlantic_storm_names) > 0){
             output$atlantic_map = renderLeaflet({
-                plot_multi_storm_path_by_size(get_storms_by_name(atlantic_data, atlantic_storm_names), colors, input$map_style)
+                plot_multi_storm_path_by_size(get_storms_by_name(atlantic_data, atlantic_storm_names))
             })
         } else {
-            output$atlantic_map = renderLeaflet({leaflet() %>% addProviderTiles(input$map_style)}) # show empty map
+            output$atlantic_map = renderLeaflet({leaflet() %>% addProviderTiles(providers$Esri.WorldStreetMap)}) # show empty map
         }
     })
     
@@ -670,9 +698,11 @@ server = function(input, output, session) {
     # overview graph
     output$overview <- renderPlot({
         ggplot(binded_rows, aes(x = year(binded_rows$Timestamp))) + 
-            geom_bar(fill = "purple") + 
-            labs(title = "Number of hurriances per year since 2005", x = "Year of Hurricane", y = "Number of Hurricances") + 
-            scale_x_continuous(breaks=2005:2018)
+            geom_bar(fill = "steelblue4") + 
+            labs(x = "Year Occurred", y = "Number of Hurricances") + 
+            scale_x_continuous(breaks=2005:2018) +
+            theme(axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 14), 
+                  axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16))
     }) 
 }
 

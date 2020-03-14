@@ -1,31 +1,151 @@
 ########################## FUNCTIONS TO HELP IN PLOTTING #####################################
 ########################## FUNCTIONS TO HELP IN PLOTTING #####################################
 
-# plot multiple storm paths on a map by their size
-plot_multi_storm_path_by_size = function(storm_data_list, color_list, map_style) {
-    map_object = leaflet() %>% addProviderTiles(map_style)
+# plot multiple storm paths on a map where each circle marker's:
+# - size represents wind speeds by hurricane category
+# - color represents pressure
+plot_multi_storm_path_by_size = function(storm_data_list) {
     
-    if (length(storm_data_list) == 0 ){
+    # scaler for circle markers and zoom ranges
+    marker_scale = 1.5
+    z_min = 4
+    z_max = 8
+    
+    map_object = leaflet() %>% 
+        addProviderTiles(providers$Esri.WorldStreetMap, group = "Esri.WorldStreetMap", options = providerTileOptions(minZoom = z_min, maxZoom = z_max)) %>%
+        addProviderTiles(providers$OpenTopoMap, group = "OpenTopoMap", options = providerTileOptions(minZoom = z_min, maxZoom = z_max)) %>%
+        addProviderTiles(providers$Esri.WorldImagery, group = "Esri.WorldImagery", options = providerTileOptions(minZoom = z_min, maxZoom = z_max))
+    
+    if (length(storm_data_list) == 0 ) {
         return (map_object)
     }
     
     for(i in 1: length(storm_data_list)) {
         storm_data = storm_data_list[[i]]
-        color = color_list[i]
+        
+        # color palette for hurricane path by pressure
+        pal <- colorNumeric(palette = "viridis", domain = storm_data$Pressure)
+        #pal <- colorNumeric(palette = c("white", "yellow", "red"), domain = storm_data$Pressure) # for custom color palette
+        
+        # quick fix for paths running thru countries (where longitude was positive)
+        # move those coordinates back a full map "cycle"
+        longitude = ifelse(storm_data$Lon > 0, storm_data$Lon - 360, storm_data$Lon) #~Lon
+        
         if (nrow(storm_data) == 1) { # only 1 coordinate
             map_object = map_object %>% 
-                addCircleMarkers(data = storm_data, lat = ~Lat, lng = ~Lon, color = color, radius = storm_data$Category) # add markers for size, replace radius with desired circle scaler
+                addCircleMarkers(data = storm_data, lat = ~Lat, lng = longitude, color = ~pal(storm_data$Pressure), radius = ((storm_data$Category + 1) * marker_scale), 
+                                 popup = paste0("<style>
+                                                    div.leaflet-popup-content {width:160% !important;}
+                                                    div.leaflet-popup-content-wrapper {width:160% !important;}
+                                            		table {
+                                            			font-family: arial, sans-serif;
+                                            			font-size: 1.25em;
+                                            			border-collapse: collapse;
+                                            			width: 58%;
+                                            		}
+                                            
+                                            		h4 {
+                                            		  text-align: center;
+                                            		}
+                                            
+                                            		td, th {
+                                            			border: 1px solid #dddddd;
+                                            			text-align: center;
+                                            			padding: 8px;
+                                            		}
+                                            
+                                            		tr:nth-child(odd) {
+                                            			font-weight: bold;
+                                            		}
+                                            
+                                            		tr:nth-child(even) {
+                                            			background-color: #dddddd;
+                                            		}
+                                            		</style>
+                                                        <h2>", storm_data$Storm_Name, "</h2>",
+                                                            "<table>
+                                            					<tr>
+                                            						<th>Category</th>
+                                            						<th>Latitude , Longitude</th>
+                                            						<th>Speed (kt)</th>
+                                            						<th>Pressure (mb)</th>
+                                            					</tr>
+                                            					<tr>
+                                            						<td>", storm_data$Category, "</td>
+                                            						<td>", storm_data$Lat, " , ", storm_data$Lon, "</td>
+                                            						<td>", storm_data$Speed, "</td>
+                                            						<td>", storm_data$Pressure, "</td>
+                                                                </tr>
+                                            				</table>
+                                            			<h4>", storm_data$Timestamp, "</h4>"),
+                                    popupOptions = popupOptions(minWidth = "100%", maxWidth = "100%", closeOnClick = TRUE)) 
         } else {
             map_object = map_object %>% 
-                addCircleMarkers(data = storm_data, lat = ~Lat, lng = ~Lon, color = color, radius = storm_data$Category) %>% # add markers for size, replace radius with desired circle scaler
-                addPolylines(data = storm_data, lat = ~Lat, lng = ~Lon, color = color, weight = storm_data$Category) # %>% weight = storm_data$Size
-            # addMarkers(data=storm_data, lng= ~lon, lat= ~lat)
+                addPolylines(data = storm_data, lat = ~Lat, lng = longitude, opacity = "0.05", color = "white", weight = (storm_data$Category * 1), label = storm_data$Storm_Name, labelOptions = labelOptions(textsize = "24px"), highlightOptions = highlightOptions(bringToFront = TRUE, stroke = TRUE, weight = 5, opacity = "0.75", color = "white")) %>%
+                addCircleMarkers(data = storm_data, lat = ~Lat, lng = longitude, color = ~pal(storm_data$Pressure), radius = ((storm_data$Category + 1) * marker_scale), 
+                                 popup = paste0("<style>
+                                                    div.leaflet-popup-content {width:160% !important;}
+                                                    div.leaflet-popup-content-wrapper {width:160% !important;}
+                                            		table {
+                                            			font-family: arial, sans-serif;
+                                            			font-size: 1.25em;
+                                            			border-collapse: collapse;
+                                            			width: 58%;
+                                            		}
+                                            
+                                            		h4 {
+                                            		  text-align: center;
+                                            		}
+                                            
+                                            		td, th {
+                                            			border: 1px solid #dddddd;
+                                            			text-align: center;
+                                            			padding: 8px;
+                                            		}
+                                            
+                                            		tr:nth-child(odd) {
+                                            			font-weight: bold;
+                                            		}
+                                            
+                                            		tr:nth-child(even) {
+                                            			background-color: #dddddd;
+                                            		}
+                                            		</style>
+                                                        <h2>", storm_data$Storm_Name, "</h2>",
+                                                            "<table>
+                                            					<tr>
+                                            						<th>Category</th>
+                                            						<th>Latitude , Longitude</th>
+                                            						<th>Speed (kt)</th>
+                                            						<th>Pressure (mb)</th>
+                                            					</tr>
+                                            					<tr>
+                                            						<td>", storm_data$Category, "</td>
+                                            						<td>", storm_data$Lat, " , ", storm_data$Lon, "</td>
+                                            						<td>", storm_data$Speed, "</td>
+                                            						<td>", storm_data$Pressure, "</td>
+                                                                </tr>
+                                            				</table>
+                                            			<h4>", storm_data$Timestamp, "</h4>"),
+                                 popupOptions = popupOptions(minWidth = "100%", maxWidth = "100%", closeOnClick = TRUE))
         }
     }
+    
+    # add legend, layer control, and zoom reset onto map
+    map_object = map_object %>%
+        addLegend(pal = pal, values = storm_data$Pressure, opacity = 0.7, title = "Pressure (mb)", position = "bottomright") %>%
+        addLayersControl(baseGroups = c("Esri.WorldStreetMap", "OpenTopoMap", "Esri.WorldImagery"), options = layersControlOptions(collapsed = FALSE))
+        
+        # reset map to Atlantic ocean of Atlantic data
+        if (substr(storm_data$Unique_ID, 0, 2) == "AL") {
+            map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([30, -40]);}")))
+        }
+        # otherwise reset to Pacific ocean
+        else {
+            map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([20, -150]);}")))
+        }
     map_object
 }
-
-# !!! all hurricanes have N/A in Size column, so using scaled down speed to plot size of hurricane at each point of its path
 
 ############################## FILTERING STORMS FUNCTIONS ######################
 ############################## FILTERING STORMS FUNCTIONS ######################
@@ -265,16 +385,16 @@ get_storms_no_landfall = function(storm_data_list) {
 
 ############################### TABLES ####################################
 ############################### TABLES ####################################
-fix_pressures = function(pressures){
-        to_vec(
-            for (pressure in pressures) 
-                if (pressure < 0)
-                    0
-                else 
-                    pressure
-        )
-}
 
+fix_pressures = function(pressures){
+    to_vec(
+        for (pressure in pressures) 
+            if (pressure < 0)
+                0
+        else 
+            pressure
+    )
+}
 
 # get a table of hurricanes top speeds and min pressures
 get_storm_names_max_speed_min_pressure_table = function(storm_data_list) {
@@ -327,31 +447,16 @@ graph_category_counts = function(pacific_list, atlantic_list, year){
     
     table = data.frame(category = c(category_map1$keys(), category_map1$keys()), 
                        count = c(as.integer(category_map1$values()), as.integer(category_map2$values()))
-                    )
+    )
     table$ocean = c(rep("PACIFIC", 5), rep("ATLANTIC", 5)) # column to do grouped bar
     
     ggplot(data = table, aes(x = category, y = count, fill = ocean)) +
         geom_bar(stat = "identity", position = "dodge") + 
-        labs(title = paste("Storm Categories: ", year)) +
+        labs(title = paste("Given Year: ", year)) +
         xlab("Category") + ylab("Count") +
+        theme(axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 14), 
+              axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16),
+              plot.title = element_text(size = 18)) +
         scale_x_continuous(breaks=1:5)
 }
 
-
-colors = c(
-    "red",
-    "blue",
-    "gray",
-    "pink",
-    "purple",
-    "black",
-    "aqua",
-    "teal",
-    "yellow",
-    "brown",
-    "green",
-    "turquoise",
-    "orange",
-    "fuscia",
-    "white"
-)
