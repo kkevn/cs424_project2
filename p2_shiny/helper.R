@@ -263,46 +263,28 @@ get_storms_no_landfall = function(storm_data_list) {
 }
 
 
-# plot to get the max wind speed for a given year
-plotWindForYear <- function(year)
-{
-  AtlanticMaxSpeedForYear <- AtlanticMaxSpeed[which(year(AtlanticMaxSpeed$Timestamp)== year),]
-  PacfificMaxSpeedForYear <- PacificMaxSpeed[which(year(PacificMaxSpeed$Timestamp)== year),]
-  
-  
-  
-  ggplot() + geom_line(data = AtlanticMaxSpeedForYear, aes(x = date(Timestamp), y = TopSpeed), color = "blue") +
-    geom_line(data = PacfificMaxSpeedForYear, aes(x = date(Timestamp), y = TopSpeed), color = "red") +
-    xlab('Day') +
-    ylab('Min Speed')
-  
-}
-
-# plot to get min pressure for hurricanes in a given year
-plotPressureForYear <- function(year)
-{
-  AtlanticMaxSpeedForYear <- AtlanticMaxSpeed[which(year(AtlanticMaxSpeed$Timestamp)== year),]
-  PacfificMaxSpeedForYear <- PacificMaxSpeed[which(year(PacificMaxSpeed$Timestamp)== year),]
-  
-  ggplot() + geom_line(data = AtlanticMaxSpeedForYear, aes(x = date(Timestamp), y = MinPressure), color = "blue") +
-    geom_line(data = PacfificMaxSpeedForYear, aes(x = date(Timestamp), y = MinPressure), color = "red") +
-    xlab('Day') +
-    ylab('Min Pressure')
-  
-  
-}
-
 ############################### TABLES ####################################
 ############################### TABLES ####################################
+fix_pressures = function(pressures){
+        to_vec(
+            for (pressure in pressures) 
+                if (pressure < 0)
+                    0
+                else 
+                    pressure
+        )
+}
 
-# get a table of hurricanes in order by top speed for a given data set
-get_storm_names_max_speed_table = function(storm_data_list) {
+
+# get a table of hurricanes top speeds and min pressures
+get_storm_names_max_speed_min_pressure_table = function(storm_data_list) {
     table = list()
     i = 1
     for (storm_data in storm_data_list) {
         top_speed = max(storm_data$Speed)
-        top_speed_index = which(storm_data$Speed == top_speed)
-        table[[i]] = c(storm_data$Storm_Name[1], strftime(storm_data$Timestamp[top_speed_index], "%m/%d/%Y")[2], top_speed)
+        top_speed_index = which(storm_data$Speed == top_speed)[1] # store index to get date associated date with speed 
+        min_pressure = min(fix_pressures(storm_data$Pressure)) 
+        table[[i]] = c(storm_data$Storm_Name[1], strftime(storm_data$Timestamp[top_speed_index], "%m/%d/%Y"), top_speed, min_pressure)
         i = i + 1
     }
     
@@ -311,83 +293,45 @@ get_storm_names_max_speed_table = function(storm_data_list) {
     names(df)[1] <- "Storm_Name"
     names(df)[2] <- "Timestamp"
     names(df)[3] <- "TopSpeed"
+    names(df)[4] <- "MinPressure"
     df$TopSpeed <- as.numeric(df$TopSpeed)
+    df$MinPressure <- as.numeric(df$MinPressure)
     df$Timestamp <- parse_date_time(df$Timestamp,"%m/%d/%Y", tz = 'America/Chicago', quiet = TRUE)    
-    # sort in descending order and return the ordered list of names
-    df <- df[order(-df$TopSpeed), ]
-    df
-}
-
-
-# get a table of hurricanes in order by min pressure for a given data set (UPDATE IN GIT)
-get_storm_names_min_pressure_table = function(storm_data_list) {
-    table = list()
-    i = 1
-    for (storm_data in storm_data_list) {
-        storm_data$Pressure = 
-            to_vec(
-                for (pressure in storm_data$Pressure) 
-                    if (pressure < 0)
-                        0
-                else 
-                    pressure
-            )
-        min_pressure = min(storm_data$Pressure)
-        min_pressure_index = which(storm_data$Pressure == min_pressure)[1] # just need first one even if multiple matches
-        table[[i]] = c(storm_data$Storm_Name[1], strftime(storm_data$Timestamp[min_pressure_index], format = "%m/%d/%Y"), min_pressure)
-        i = i + 1
-    }
     
-    # build dataframe of each hurricane and its min pressure
-    df <- data.frame(matrix(unlist(table), nrow = length(table), byrow = T), stringsAsFactors = FALSE)
-    names(df)[1] <- "Storm_Name"
-    names(df)[2] <- "Timestamp"
-    names(df)[3] <- "MinPressure"
-    df$MinPressure<- as.numeric(df$MinPressure)
-    df$Timestamp <- parse_date_time(df$Timestamp, "%m/%d/%Y", tz = 'America/Chicago', quiet = TRUE)    
-    # sort in ascending order and return the ordered list of names
-    df <- df[order(df$MinPressure), ]
+    # no need to sort; graphing auto sorts the x
     df
 }
 
-# get a table of hurricanes in order by top speed + min pressure for a given data set
-get_storm_names_max_speed_table = function(storm_data_list) {
-  table = list()
-  i = 1
-  for (storm_data in storm_data_list) {
-    table[[i]] = c(storm_data$Storm_Name[1], strftime(storm_data$Timestamp, "%m/%d/%Y")[2], max(storm_data$Speed), min(storm_data$Pressure))
-    i = i + 1
-  }
-  
-  # build dataframe of each hurricane and its top speed
-  df <- data.frame(matrix(unlist(table), nrow = length(table), byrow = T), stringsAsFactors = FALSE)
-  names(df)[1] <- "Storm_Name"
-  names(df)[2] <- "Timestamp"
-  names(df)[3] <- "TopSpeed"
-  names(df)[4] <- "MinPressure"
-  df$TopSpeed <- as.numeric(df$TopSpeed)
-  df$Timestamp <- parse_date_time(df$Timestamp,"%m/%d/%Y", tz = 'America/Chicago', quiet = TRUE)
-  df$MinPressure <- as.numeric(df$MinPressure)
-  # sort in descending order and return the ordered list of names
-  df <- df[order(-df$TopSpeed), ]
-  df
-}
 
-# make a graph for a single year's categories; assumes storm_data_list contains all storms from the same year
+# make a graph for a single year's categories; assumes storm_data_lists contains all storms from the same year
 # year argument is just to display the graph's title
-graph_category_counts = function(storm_data_list, year){
-    category_map = hashmap(1:5, c(0, 0, 0, 0, 0)) # to count how many per category
-    for(storm_data in storm_data_list){
+graph_category_counts = function(pacific_list, atlantic_list, year){
+    category_map1 = hashmap(1:5, c(0, 0, 0, 0, 0)) # to count how many per category
+    category_map2 = hashmap(1:5, c(0, 0, 0, 0, 0)) # to count how many per category
+    
+    for(storm_data in pacific_list){
         for(category in storm_data$Category){
             if (category != 0){
-                category_map[[category]] = category_map[[category]] + 1
+                category_map1[[category]] = category_map1[[category]] + 1
             }
         }
     }
-    table = data.frame(category = category_map$keys(), count = as.integer(category_map$values()))
     
-    ggplot(data = table, aes(x = category, y = count)) +
-        geom_bar(stat = "identity", fill = "steelblue") + 
+    for(storm_data in atlantic_list){
+        for(category in storm_data$Category){
+            if (category != 0){
+                category_map2[[category]] = category_map2[[category]] + 1
+            }
+        }
+    }
+    
+    table = data.frame(category = c(category_map1$keys(), category_map1$keys()), 
+                       count = c(as.integer(category_map1$values()), as.integer(category_map2$values()))
+                    )
+    table$ocean = c(rep("PACIFIC", 5), rep("ATLANTIC", 5)) # column to do grouped bar
+    
+    ggplot(data = table, aes(x = category, y = count, fill = ocean)) +
+        geom_bar(stat = "identity", position = "dodge") + 
         labs(title = paste("Storm Categories: ", year)) +
         xlab("Category") + ylab("Count") +
         scale_x_continuous(breaks=1:5)

@@ -97,17 +97,13 @@ ui = dashboardPage(
     
     dashboardBody(
         fluidRow(
-            column(4, box(title = "Hurricanes Since 2015", solidHeader = TRUE, 
+            column(6, box(title = "Hurricanes Since 2015", solidHeader = TRUE, 
                           width = NULL, status = "primary", style = "font-size:150%",
                               plotOutput("overview")
                         )
             ),
-            column(4, box(title = "Pacific Hurricane Categories", width = NULL, status = "primary", 
-                          plotOutput("pacific_category_counts")
-                          )
-                   ),
-            column(4, box(title = "Atlantic Hurricane Categories", width = NULL, status = "primary",
-                          plotOutput("atlantic_category_counts")
+            column(6, box(title = "Pacific Hurricane Categories", width = NULL, status = "primary", solidHeader = TRUE, 
+                          plotOutput("category_counts")
                           )
                    ),
             column(6, box(title = "Max Wind Speed", width = NULL, status = "primary",
@@ -536,49 +532,46 @@ server = function(input, output, session) {
             
             # user sees all years; pacific doesn't go as far back as atlantic so check
             if (length(pacific_year) == 0) { # can only show atlantic
-                atlantic_speed_table = get_storm_names_max_speed_table(atlantic_year)
-                atlantic_pressure_table = get_storm_names_min_pressure_table(atlantic_year)
+                atlantic_speed_pressure_table = get_storm_names_max_speed_min_pressure_table(atlantic_year)
                 
+                # show min pressure graph for atlantic only
                 output$min_pressure_graph = renderPlot({
-                    ggplot(data = atlantic_pressure_table, aes(x = Timestamp, y = MinPressure)) +
+                    ggplot(data = atlantic_speed_pressure_table, aes(x = Timestamp, y = MinPressure)) +
                         geom_line() + geom_point() + 
                         labs(xlab("Day"), ylab("Min Pressure"), title = paste("Min Pressure Over ", input$years, "(Atlantic)"))
                 })
                 
+                # show max speed graph for atlantic only
                 output$max_wind_speed_graph = renderPlot({
-                    ggplot(data = atlantic_speed_table, aes(x = Timestamp, y = TopSpeed)) +
+                    ggplot(data = atlantic_speed_pressure_table, aes(x = Timestamp, y = TopSpeed)) +
                     geom_line() + geom_point() + 
                     labs(xlab("Day"), ylab("Max Wind Speed"), title = paste("Max Wind Speed Over ", input$years, "(Atlantic)"))
                 })
                 
             } else { # both can be displayed
-                atlantic_speed_table = get_storm_names_max_speed_table(atlantic_year) %>%  mutate(ocean = "ATLANTIC")
-                pacific_speed_table = get_storm_names_max_speed_table(pacific_year)  %>% mutate(ocean = "PACIFIC")
-                combined_speed_table = rbind(atlantic_speed_table, pacific_speed_table)
+                atlantic_speed_pressure_table = get_storm_names_max_speed_min_pressure_table(atlantic_year) %>%  mutate(ocean = "ATLANTIC")
+                pacific_speed_pressure_table = get_storm_names_max_speed_min_pressure_table(pacific_year) %>%  mutate(ocean = "PACIFIC")
                 
-                atlantic_pressure_table = get_storm_names_min_pressure_table(atlantic_year) %>%  mutate(ocean = "ATLANTIC")
-                pacific_pressure_table = get_storm_names_min_pressure_table(pacific_year)  %>% mutate(ocean = "PACIFIC")
-                combined_pressure_table = rbind(atlantic_pressure_table, pacific_pressure_table)
+                combined_table = rbind(atlantic_speed_pressure_table, pacific_speed_pressure_table)
                 
+                # show max speed graph for both oceans
                 output$max_wind_speed_graph = renderPlot({
-                    ggplot(data = combined_speed_table, aes(x = Timestamp, y = TopSpeed)) +
+                    ggplot(data = combined_table, aes(x = Timestamp, y = TopSpeed)) +
                         geom_line(aes(color = ocean)) + geom_point(aes(color = ocean)) + 
                         labs(xlab("Day"), ylab("Max Wind Speed"), title = paste("Max Wind Speed Over ", input$years))
                 })
                 
+                # show min pressure graph for both oceans
                 output$min_pressure_graph = renderPlot({
-                    ggplot(data = combined_pressure_table, aes(x = Timestamp, y = MinPressure)) +
+                    ggplot(data = combined_table, aes(x = Timestamp, y = MinPressure)) +
                         geom_line(aes(color = ocean)) + geom_point(aes(color = ocean)) + 
                         labs(xlab("Day"), ylab("Min Pressure"), title = paste("Min Pressure Over ", input$years))
                 })
             }
             
-            output$pacific_category_counts = renderPlot({
-                graph_category_counts(pacific_year, input$years)
-            })
             
-            output$atlantic_category_counts = renderPlot({
-                graph_category_counts(atlantic_year, input$years)
+            output$category_counts = renderPlot({
+                graph_category_counts(pacific_year, atlantic_year, input$years) 
             })
     })
     
