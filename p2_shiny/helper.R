@@ -263,6 +263,35 @@ get_storms_no_landfall = function(storm_data_list) {
 }
 
 
+# plot to get the max wind speed for a given year
+plotWindForYear <- function(year)
+{
+  AtlanticMaxSpeedForYear <- AtlanticMaxSpeed[which(year(AtlanticMaxSpeed$Timestamp)== year),]
+  PacfificMaxSpeedForYear <- PacificMaxSpeed[which(year(PacificMaxSpeed$Timestamp)== year),]
+  
+  
+  
+  ggplot() + geom_line(data = AtlanticMaxSpeedForYear, aes(x = date(Timestamp), y = TopSpeed), color = "blue") +
+    geom_line(data = PacfificMaxSpeedForYear, aes(x = date(Timestamp), y = TopSpeed), color = "red") +
+    xlab('Day') +
+    ylab('Min Speed')
+  
+}
+
+# plot to get min pressure for hurricanes in a given year
+plotPressureForYear <- function(year)
+{
+  AtlanticMaxSpeedForYear <- AtlanticMaxSpeed[which(year(AtlanticMaxSpeed$Timestamp)== year),]
+  PacfificMaxSpeedForYear <- PacificMaxSpeed[which(year(PacificMaxSpeed$Timestamp)== year),]
+  
+  ggplot() + geom_line(data = AtlanticMaxSpeedForYear, aes(x = date(Timestamp), y = MinPressure), color = "blue") +
+    geom_line(data = PacfificMaxSpeedForYear, aes(x = date(Timestamp), y = MinPressure), color = "red") +
+    xlab('Day') +
+    ylab('Min Pressure')
+  
+  
+}
+
 ############################### TABLES ####################################
 ############################### TABLES ####################################
 
@@ -319,6 +348,29 @@ get_storm_names_min_pressure_table = function(storm_data_list) {
     # sort in ascending order and return the ordered list of names
     df <- df[order(df$MinPressure), ]
     df
+}
+
+# get a table of hurricanes in order by top speed + min pressure for a given data set
+get_storm_names_max_speed_table = function(storm_data_list) {
+  table = list()
+  i = 1
+  for (storm_data in storm_data_list) {
+    table[[i]] = c(storm_data$Storm_Name[1], strftime(storm_data$Timestamp, "%m/%d/%Y")[2], max(storm_data$Speed), min(storm_data$Pressure))
+    i = i + 1
+  }
+  
+  # build dataframe of each hurricane and its top speed
+  df <- data.frame(matrix(unlist(table), nrow = length(table), byrow = T), stringsAsFactors = FALSE)
+  names(df)[1] <- "Storm_Name"
+  names(df)[2] <- "Timestamp"
+  names(df)[3] <- "TopSpeed"
+  names(df)[4] <- "MinPressure"
+  df$TopSpeed <- as.numeric(df$TopSpeed)
+  df$Timestamp <- parse_date_time(df$Timestamp,"%m/%d/%Y", tz = 'America/Chicago', quiet = TRUE)
+  df$MinPressure <- as.numeric(df$MinPressure)
+  # sort in descending order and return the ordered list of names
+  df <- df[order(-df$TopSpeed), ]
+  df
 }
 
 # make a graph for a single year's categories; assumes storm_data_list contains all storms from the same year
