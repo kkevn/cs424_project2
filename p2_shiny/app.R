@@ -189,14 +189,20 @@ ui = dashboardPage(
     ),
     fluidRow(
       
-      column(6, 
+      column(5, 
              box(title = "Map of Atlantic Hurricanes", width = NULL, height = 750, status = "info",
                  leafletOutput(outputId = "atlantic_map", height = 675)
              )
       ),
-      column(6, 
+      column(5, 
              box(title = "Map of Pacific Hurricanes", width = NULL, height = 750, status = "info",
                  leafletOutput(outputId = "pacific_map", height = 675)
+             )
+      ),
+      column(2, 
+             box(title = "??? in Given Month", solidHeader = FALSE, 
+                 width = NULL, status = "primary", style = "font-size:150%",
+                 #plotOutput("???")
              )
       )
       
@@ -210,7 +216,6 @@ server = function(input, output, session) {
   shown_pacific_names = reactiveVal() # keep track of which names are currently being displayed
   shown_atlantic_names = reactiveVal() # keep track of which names are currently being displayed
   shown_combined_names = reactiveVal() # keep track of which names are currently being displayed
-  
   
   # should update the combined one
   combined2018 = get_storms_by_year(combined_data, 2018)
@@ -238,7 +243,6 @@ server = function(input, output, session) {
       )
     ) # end showModal
   }) # end about info 
-  
   
   # Show all storms; must check which tab is currently shown
   observeEvent(input$show_all_names_button, {
@@ -652,7 +656,12 @@ server = function(input, output, session) {
     # for some reason, last uncheck doesn't trigger observeEvent
     storms_to_plot = get_storms_by_name(pacific_data, input$pacific_storm_names)
     output$pacific_map = renderLeaflet({
-      plot_multi_storm_path_by_size(storms_to_plot)
+      
+      # check if pacific heatmap enabled
+      if (!is.null(input$pac_heat) && input$pac_heat == "T")
+          plot_storm_heatmap(storms_to_plot)
+      else
+          plot_multi_storm_path_by_size(storms_to_plot)
     })
   })
   
@@ -661,7 +670,12 @@ server = function(input, output, session) {
     # print(input$atlantic_storm_names)
     # print("**********************************")
     output$atlantic_map = renderLeaflet({
-      plot_multi_storm_path_by_size(storms_to_plot)
+      
+      # check if atlantic heatmap enabled
+      if (!is.null(input$atl_heat) && input$atl_heat == "T")
+          plot_storm_heatmap(storms_to_plot)
+      else
+          plot_multi_storm_path_by_size(storms_to_plot)
     })
   })
   
@@ -679,7 +693,13 @@ server = function(input, output, session) {
     
     if (length(pacific_storm_names) > 0){
       output$pacific_map = renderLeaflet({
-        plot_multi_storm_path_by_size(get_storms_by_name(pacific_data, pacific_storm_names))
+        
+        # check if pacific heatmap enabled
+        if (!is.null(input$pac_heat) && input$pac_heat == "T")
+            plot_storm_heatmap(get_storms_by_name(pacific_data, pacific_storm_names))
+        else
+            plot_multi_storm_path_by_size(get_storms_by_name(pacific_data, pacific_storm_names))
+
       })
     } else {
       output$pacific_map = renderLeaflet({leaflet() %>% addProviderTiles(providers$Esri.WorldStreetMap)}) # show empty map
@@ -687,7 +707,13 @@ server = function(input, output, session) {
     
     if (length(atlantic_storm_names) > 0){
       output$atlantic_map = renderLeaflet({
-        plot_multi_storm_path_by_size(get_storms_by_name(atlantic_data, atlantic_storm_names))
+        
+        # check if atlantic heatmap enabled
+        if (!is.null(input$atl_heat) && input$atl_heat == "T")
+            plot_storm_heatmap(get_storms_by_name(atlantic_data, atlantic_storm_names))
+        else
+            plot_multi_storm_path_by_size(get_storms_by_name(atlantic_data, atlantic_storm_names))
+
       })
     } else {
       output$atlantic_map = renderLeaflet({leaflet() %>% addProviderTiles(providers$Esri.WorldStreetMap)}) # show empty map

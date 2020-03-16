@@ -78,7 +78,7 @@ plot_multi_storm_path_by_size = function(storm_data_list) {
                                                                 </tr>
                                             				</table>
                                             			<h4>", storm_data$Timestamp, "</h4>"),
-                                    popupOptions = popupOptions(minWidth = "100%", maxWidth = "100%", closeOnClick = TRUE)) 
+                                    popupOptions = popupOptions(minWidth = "100%", maxWidth = "100%", closeOnClick = TRUE))
         } else {
             map_object = map_object %>% 
                 addPolylines(data = storm_data, lat = ~Lat, lng = longitude, opacity = "0.05", color = "white", weight = (storm_data$Category * 1), label = storm_data$Storm_Name, labelOptions = labelOptions(textsize = "24px"), highlightOptions = highlightOptions(bringToFront = TRUE, stroke = TRUE, weight = 5, opacity = "0.75", color = "white")) %>%
@@ -131,19 +131,70 @@ plot_multi_storm_path_by_size = function(storm_data_list) {
         }
     }
     
-    # add legend, layer control, and zoom reset onto map
+    # add legend, layer control, zoom reset, and heatmap toggle onto map
     map_object = map_object %>%
-        addLegend(pal = pal, values = storm_data$Pressure, opacity = 0.7, title = "Pressure (mb)", position = "bottomright") %>%
+        addLegend(pal = pal, values = storm_data$Pressure, opacity = 0.7, title = "Pressure", labFormat = labelFormat(suffix = " mb"), position = "bottomright") %>%
         addLayersControl(baseGroups = c("Esri.WorldStreetMap", "OpenTopoMap", "Esri.WorldImagery"), options = layersControlOptions(collapsed = FALSE))
-        
-        # reset map to Atlantic ocean of Atlantic data
+    
+        # reset map to Atlantic ocean of Atlantic data  and set heatmap toggle to off
         if (substr(storm_data$Unique_ID, 0, 2) == "AL") {
-            map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([30, -40]);}")))
+            map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([30, -40]);}"))) %>%
+                addEasyButton(easyButton(title = "Toggle heatmap on", icon = "ion-toggle", onClick = JS("function(btn, map){ Shiny.onInputChange('atl_heat', 'T');}")))
         }
-        # otherwise reset to Pacific ocean
+        # otherwise reset to Pacific ocean  and set heatmap toggle to off
         else {
-            map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([20, -150]);}")))
+            map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([20, -150]);}"))) %>%
+                addEasyButton(easyButton(title = "Toggle heatmap on", icon = "ion-toggle", onClick = JS("function(btn, map){ Shiny.onInputChange('pac_heat', 'T');}")))
         }
+ 
+    map_object
+}
+
+# plot a danger heatmap of all given storms' coordinates
+# - intensity is more red at higher speeds
+plot_storm_heatmap = function(storm_data_list) {
+    
+    # scaler for circle markers, zoom ranges, and heatmap parameters
+    marker_scale = 1.5
+    z_min = 4
+    z_max = 8
+    hm_blur = 15
+    hm_max = 200
+    hm_cell = 1
+    
+    map_object = leaflet() %>% 
+        addProviderTiles(providers$Esri.WorldStreetMap, group = "Esri.WorldStreetMap", options = providerTileOptions(minZoom = z_min, maxZoom = z_max)) %>%
+        addProviderTiles(providers$OpenTopoMap, group = "OpenTopoMap", options = providerTileOptions(minZoom = z_min, maxZoom = z_max)) %>%
+        addProviderTiles(providers$Esri.WorldImagery, group = "Esri.WorldImagery", options = providerTileOptions(minZoom = z_min, maxZoom = z_max))
+    
+    if (length(storm_data_list) == 0 ) {
+        return (map_object)
+    }
+    
+    # treat storms as one to get one single heatmap instead of several overlapping
+    storm_data = rbind_list(lapply(storm_data_list, data.frame))
+    
+    # apply longitude fix and add heatmap
+    longitude = ifelse(storm_data$Lon > 0, storm_data$Lon - 360, storm_data$Lon) #~Lon
+    map_object = map_object %>% 
+        #addHeatmap(lng = storm_data$Lon, lat = storm_data$Lat, intensity = storm_data$Speed, blur = hm_blur, max = hm_max, cellSize = hm_cell)
+        addHeatmap(lng = longitude, lat = storm_data$Lat, intensity = storm_data$Speed, blur = hm_blur, max = hm_max, cellSize = hm_cell)
+    
+    # add layer control, zoom reset, and heatmap toggle onto map
+    map_object = map_object %>%
+        addLayersControl(baseGroups = c("Esri.WorldStreetMap", "OpenTopoMap", "Esri.WorldImagery"), options = layersControlOptions(collapsed = FALSE))
+    
+    # reset map to Atlantic ocean of Atlantic data and set heatmap toggle to on
+    if (substr(storm_data_list[[1]]$Unique_ID, 0, 2) == "AL") {
+        map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([30, -40]);}"))) %>%
+            addEasyButton(easyButton(title = "Toggle heatmap off", icon = "ion-toggle-filled", onClick = JS("function(btn, map){ Shiny.onInputChange('atl_heat', 'F');}")))
+    }
+    # otherwise reset to Pacific ocean and set heatmap toggle to on
+    else {
+        map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([20, -150]);}"))) %>%
+            addEasyButton(easyButton(title = "Toggle heatmap off", icon = "ion-toggle-filled", onClick = JS("function(btn, map){ Shiny.onInputChange('pac_heat', 'F');}")))
+    }
+    
     map_object
 }
 
