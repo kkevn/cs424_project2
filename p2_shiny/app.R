@@ -74,6 +74,10 @@ binded_rows <- bind_rows(post2005_combined_data, .id="df")
 
 days_and_years = get_all_days_and_years(combined_data)
 
+pacific_month_data = get_month_data(pacific_data)
+atlantic_month_data = get_month_data(atlantic_data)
+
+
 ########################## DASHBOARD #####################################
 ########################## DASHBOARD #####################################
 
@@ -169,22 +173,21 @@ ui = dashboardPage(
   dashboardBody(
     fluidRow(
       column(5, 
-             tabBox(
-               title = "Line Graphs of Speed & Pressure",
-               id = "speed_pressure_graphs",
-               width = "200%",
-               tabPanel("Maximum Speed", plotOutput("max_wind_speed_graph")),
-               tabPanel("Minimum Pressure", plotOutput("min_pressure_graph"))
+             box(title = "Line Graphs of Speed & Pressure", width = NULL, status = "info", 
+              tabsetPanel(
+                tabPanel("Maximum Speed", plotOutput("max_wind_speed_graph")),
+                tabPanel("Minimum Pressure", plotOutput("min_pressure_graph"))
+              )
              )
       ),
       column(2, 
-             box(title = "Number of Hurricanes/Category in Given Year", width = NULL, status = "primary",
+             box(title = "Number of Hurricanes/Category in Given Year", width = NULL, status = "info",
                  plotOutput("category_counts")
              )
       ),
       column(5, 
              box(title = "Number of Hurricanes/Year since 2005", solidHeader = FALSE, 
-                 width = NULL, status = "primary", style = "font-size:150%",
+                 width = NULL, status = "info", style = "font-size:150%",
                  plotOutput("overview")
              )
       )
@@ -196,15 +199,14 @@ ui = dashboardPage(
                  leafletOutput(outputId = "atlantic_map", height = 675)
              )
       ),
+      column(2, 
+             box(title = "Monthly Hurricanes Over All Years", width = NULL, status = "info", style = "font-size:150%",
+                 plotOutput("monthly_counts", height = 675)
+             )
+      ),
       column(5, 
              box(title = "Map of Pacific Hurricanes", width = NULL, height = 750, status = "info",
                  leafletOutput(outputId = "pacific_map", height = 675)
-             )
-      ),
-      column(2, 
-             box(title = "??? in Given Month", solidHeader = FALSE, 
-                 width = NULL, status = "primary", style = "font-size:150%",
-                 #plotOutput("???")
              )
       )
       
@@ -245,6 +247,13 @@ server = function(input, output, session) {
       )
     ) # end showModal
   }) # end about info 
+  
+  
+  output$monthly_counts = renderPlot({
+    
+   graph_month_data(pacific_month_data, atlantic_month_data)
+   
+  })
   
   # Show all storms; must check which tab is currently shown
   observeEvent(input$show_all_names_button, {
@@ -466,6 +475,13 @@ server = function(input, output, session) {
     
     updateCheckboxGroupInput(session, checkbox_group_name, choices = shown_names, selected = storms_within_speed_range)
     
+    output$monthly_counts = renderPlot({
+      pacific_months = get_month_data_max_wind_speed(pacific_data, low, high)
+      atlantic_months = get_month_data_max_wind_speed(atlantic_data, low, high)
+      
+      graph_month_data(pacific_months, atlantic_months)
+    })
+    
   })
   
   # filter storms within a given range of min pressure; must check which tab is currently shown
@@ -503,6 +519,13 @@ server = function(input, output, session) {
     storms_within_pressure_range = get_storm_names_min_pressure(get_storms_by_name(data, shown_names), low, high)
     
     updateCheckboxGroupInput(session, checkbox_group_name, choices = shown_names, selected = storms_within_pressure_range)
+    
+    output$monthly_counts = renderPlot({
+      pacific_months = get_month_data_min_pressure(pacific_data, low, high)
+      atlantic_months = get_month_data_min_pressure(atlantic_data, low, high)
+      
+      graph_month_data(pacific_months, atlantic_months)
+    })
     
   })
   
@@ -729,7 +752,7 @@ server = function(input, output, session) {
       geom_bar(fill = "steelblue4") + 
       labs(x = "Year Occurred", y = "Number of Hurricances") + 
       scale_x_continuous(breaks=2005:2018) +
-      theme(axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 14), 
+      theme(axis.text.x = element_text(size = 14, angle = 45), axis.text.y = element_text(size = 14), 
             axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16))
   }) 
 }

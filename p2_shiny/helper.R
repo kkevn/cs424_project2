@@ -511,3 +511,172 @@ graph_category_counts = function(pacific_list, atlantic_list, year){
         scale_x_continuous(breaks=1:5)
 }
 
+
+get_month_data = function(storm_data_list){ # UPDATE NOTEBOOK
+    # hurricane season from june to november
+    june = list() # 6
+    july = list() # 7
+    august = list() # 8
+    september = list() # 9
+    october = list() # 10
+    november = list() # 11
+    
+    june_index = 1
+    july_index = 1
+    august_index = 1
+    september_index = 1
+    october_index = 1
+    november_index = 1
+    
+    for (storm_data in storm_data_list){
+        month = month(as.Date(storm_data$Timestamp))
+        if (any(month == 6)){
+            june[[june_index]] = storm_data
+            june_index = june_index + 1
+        } else if (any(month == 7)){
+            july[[july_index]] = storm_data
+            july_index = july_index + 1
+        } else if (any(month == 8)){
+            august[[august_index]] = storm_data
+            august_index = august_index + 1
+        } else if (any(month == 9)){
+            september[[september_index]] = storm_data
+            september_index = september_index + 1
+        } else if (any(month == 10)){
+            october[[october_index]] = storm_data
+            october_index = october_index + 1
+        } else if (any(month == 11)){
+            november[[november_index]] = storm_data
+            november_index = november_index + 1
+        }
+    }
+    
+    list(june=june, july=july, august=august, september=september, october=october, november=november)
+}
+
+get_month_data_max_wind_speed = function(storm_data_list, low, high){
+    bounds = low:high
+    
+    # hurricane season from june to november
+    june = list() # 6
+    july = list() # 7
+    august = list() # 8
+    september = list() # 9
+    october = list() # 10
+    november = list() # 11
+    
+    june_index = 1
+    july_index = 1
+    august_index = 1
+    september_index = 1
+    october_index = 1
+    november_index = 1
+    
+    
+    for (storm_data in storm_data_list){
+        month = month(as.Date(storm_data$Timestamp))
+        if (any(storm_data$Speed %in% bounds)){
+            if (any(month == 6)){
+                june[[june_index]] = storm_data
+                june_index = june_index + 1
+            } else if (any(month == 7)){
+                july[[july_index]] = storm_data
+                july_index = july_index + 1
+            } else if (any(month == 8)){
+                august[[august_index]] = storm_data
+                august_index = august_index + 1
+            } else if (any(month == 9)){
+                september[[september_index]] = storm_data
+                september_index = september_index + 1
+            } else if (any(month == 10)){
+                october[[october_index]] = storm_data
+                october_index = october_index + 1
+            } else if (any(month == 11)){
+                november[[november_index]] = storm_data
+                november_index = november_index + 1
+            }
+        }
+        
+    }
+    
+    
+    list(june=june, july=july, august=august, september=september, october=october, november=november)
+}
+
+
+get_month_data_min_pressure = function(storm_data_list, low, high){
+    bounds = low:high
+    
+    # hurricane season from june to november
+    june = list() # 6
+    july = list() # 7
+    august = list() # 8
+    september = list() # 9
+    october = list() # 10
+    november = list() # 11
+    
+    june_index = 1
+    july_index = 1
+    august_index = 1
+    september_index = 1
+    october_index = 1
+    november_index = 1
+    
+    
+    for (storm_data in storm_data_list){
+        month = month(as.Date(storm_data$Timestamp))
+        if (any(fix_pressures(storm_data$Pressure) %in% bounds)){
+            if (any(month == 6)){
+                june[[june_index]] = storm_data
+                june_index = june_index + 1
+            } else if (any(month == 7)){
+                july[[july_index]] = storm_data
+                july_index = july_index + 1
+            } else if (any(month == 8)){
+                august[[august_index]] = storm_data
+                august_index = august_index + 1
+            } else if (any(month == 9)){
+                september[[september_index]] = storm_data
+                september_index = september_index + 1
+            } else if (any(month == 10)){
+                october[[october_index]] = storm_data
+                october_index = october_index + 1
+            } else if (any(month == 11)){
+                november[[november_index]] = storm_data
+                november_index = november_index + 1
+            }
+        }
+        
+    }
+    
+    
+    list(june=june, july=july, august=august, september=september, october=october, november=november)
+}
+
+graph_month_data = function(pacific_month_data, atlantic_month_data){
+    pacific_counts = to_vec(
+        for (storm_data in pacific_month_data)
+            length(storm_data)
+    )
+    
+    atlantic_counts = to_vec(
+        for (storm_data in atlantic_month_data)
+            length(storm_data)
+    )
+    
+    month_df = data.frame(month = rep(months, 2),
+                          count = c(pacific_counts, atlantic_counts),
+                          ocean = c(rep("PACIFIC", 6), rep("ATLANTIC", 6))
+    )
+    
+    ggplot(data = month_df, aes(x = month, y = count, fill = ocean)) + 
+        geom_bar(stat = "identity", position = "dodge") + xlab("Month") + ylab("Hurricane Count") + 
+        theme(axis.text.x = element_text(size = 14, angle = 45), axis.text.y = element_text(size = 14), 
+              axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16))
+    
+}
+
+
+# months in the hurricane season
+months = c("June" , "July", "August", "September", "October", "November")
+months = factor(months, levels = months, ordered = TRUE)
