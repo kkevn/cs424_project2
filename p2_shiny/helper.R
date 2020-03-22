@@ -1,26 +1,202 @@
 ########################## FUNCTIONS TO HELP IN PLOTTING #####################################
 ########################## FUNCTIONS TO HELP IN PLOTTING #####################################
 
-# plot multiple storm paths on a map by their size
-plot_multi_storm_path_by_size = function(storm_data_list, color_list) {
-    map_object = leaflet() %>% addTiles()
+# plot multiple storm paths on a map where each circle marker's:
+# - size represents wind speeds by hurricane category
+# - color represents pressure
+plot_multi_storm_path_by_size = function(storm_data_list) {
+    
+    # scaler for circle markers and zoom ranges
+    marker_scale = 1.5
+    z_min = 4
+    z_max = 8
+    
+    map_object = leaflet() %>% 
+        addProviderTiles(providers$Esri.WorldStreetMap, group = "Esri.WorldStreetMap", options = providerTileOptions(minZoom = z_min, maxZoom = z_max)) %>%
+        addProviderTiles(providers$OpenTopoMap, group = "OpenTopoMap", options = providerTileOptions(minZoom = z_min, maxZoom = z_max)) %>%
+        addProviderTiles(providers$Esri.WorldImagery, group = "Esri.WorldImagery", options = providerTileOptions(minZoom = z_min, maxZoom = z_max))
+    
+    if (length(storm_data_list) == 0 ) {
+        return (map_object)
+    }
+    
     for(i in 1: length(storm_data_list)) {
         storm_data = storm_data_list[[i]]
-        color = color_list[i]
+        
+        # color palette for hurricane path by pressure
+        pal <- colorNumeric(palette = "viridis", domain = storm_data$Pressure)
+        #pal <- colorNumeric(palette = c("white", "yellow", "red"), domain = storm_data$Pressure) # for custom color palette
+        
+        # quick fix for paths running thru countries (where longitude was positive)
+        # move those coordinates back a full map "cycle"
+        longitude = ifelse(storm_data$Lon > 0, storm_data$Lon - 360, storm_data$Lon) #~Lon
+        
         if (nrow(storm_data) == 1) { # only 1 coordinate
             map_object = map_object %>% 
-                addCircleMarkers(data = storm_data, lat = ~Lat, lng = ~Lon, color = color, radius = storm_data$Category) # add markers for size, replace radius with desired circle scaler
+                addCircleMarkers(data = storm_data, lat = ~Lat, lng = longitude, color = ~pal(storm_data$Pressure), radius = ((storm_data$Category + 1) * marker_scale), 
+                                 popup = paste0("<style>
+                                                    div.leaflet-popup-content {width:160% !important;}
+                                                    div.leaflet-popup-content-wrapper {width:160% !important;}
+                                            		table {
+                                            			font-family: arial, sans-serif;
+                                            			font-size: 1.25em;
+                                            			border-collapse: collapse;
+                                            			width: 58%;
+                                            		}
+                                            
+                                            		h4 {
+                                            		  text-align: center;
+                                            		}
+                                            
+                                            		td, th {
+                                            			border: 1px solid #dddddd;
+                                            			text-align: center;
+                                            			padding: 8px;
+                                            		}
+                                            
+                                            		tr:nth-child(odd) {
+                                            			font-weight: bold;
+                                            		}
+                                            
+                                            		tr:nth-child(even) {
+                                            			background-color: #dddddd;
+                                            		}
+                                            		</style>
+                                                        <h2>", storm_data$Storm_Name, "</h2>",
+                                                            "<table>
+                                            					<tr>
+                                            						<th>Category</th>
+                                            						<th>Latitude , Longitude</th>
+                                            						<th>Speed (kt)</th>
+                                            						<th>Pressure (mb)</th>
+                                            					</tr>
+                                            					<tr>
+                                            						<td>", storm_data$Category, "</td>
+                                            						<td>", storm_data$Lat, " , ", storm_data$Lon, "</td>
+                                            						<td>", storm_data$Speed, "</td>
+                                            						<td>", storm_data$Pressure, "</td>
+                                                                </tr>
+                                            				</table>
+                                            			<h4>", storm_data$Timestamp, "</h4>"),
+                                    popupOptions = popupOptions(minWidth = "100%", maxWidth = "100%", closeOnClick = TRUE))
         } else {
             map_object = map_object %>% 
-                addCircleMarkers(data = storm_data, lat = ~Lat, lng = ~Lon, color = color, radius = storm_data$Category) %>% # add markers for size, replace radius with desired circle scaler
-                addPolylines(data = storm_data, lat = ~Lat, lng = ~Lon, color = color, weight = storm_data$Category) # %>% weight = storm_data$Size
-            # addMarkers(data=storm_data, lng= ~lon, lat= ~lat)
+                addPolylines(data = storm_data, lat = ~Lat, lng = longitude, opacity = "0.05", color = "white", weight = (storm_data$Category * 1), label = storm_data$Storm_Name, labelOptions = labelOptions(textsize = "24px"), highlightOptions = highlightOptions(bringToFront = TRUE, stroke = TRUE, weight = 5, opacity = "0.75", color = "white")) %>%
+                addCircleMarkers(data = storm_data, lat = ~Lat, lng = longitude, color = ~pal(storm_data$Pressure), radius = ((storm_data$Category + 1) * marker_scale), 
+                                 popup = paste0("<style>
+                                                    div.leaflet-popup-content {width:160% !important;}
+                                                    div.leaflet-popup-content-wrapper {width:160% !important;}
+                                            		table {
+                                            			font-family: arial, sans-serif;
+                                            			font-size: 1.25em;
+                                            			border-collapse: collapse;
+                                            			width: 58%;
+                                            		}
+                                            
+                                            		h4 {
+                                            		  text-align: center;
+                                            		}
+                                            
+                                            		td, th {
+                                            			border: 1px solid #dddddd;
+                                            			text-align: center;
+                                            			padding: 8px;
+                                            		}
+                                            
+                                            		tr:nth-child(odd) {
+                                            			font-weight: bold;
+                                            		}
+                                            
+                                            		tr:nth-child(even) {
+                                            			background-color: #dddddd;
+                                            		}
+                                            		</style>
+                                                        <h2>", storm_data$Storm_Name, "</h2>",
+                                                            "<table>
+                                            					<tr>
+                                            						<th>Category</th>
+                                            						<th>Latitude , Longitude</th>
+                                            						<th>Speed (kt)</th>
+                                            						<th>Pressure (mb)</th>
+                                            					</tr>
+                                            					<tr>
+                                            						<td>", storm_data$Category, "</td>
+                                            						<td>", storm_data$Lat, " , ", storm_data$Lon, "</td>
+                                            						<td>", storm_data$Speed, "</td>
+                                            						<td>", storm_data$Pressure, "</td>
+                                                                </tr>
+                                            				</table>
+                                            			<h4>", storm_data$Timestamp, "</h4>"),
+                                 popupOptions = popupOptions(minWidth = "100%", maxWidth = "100%", closeOnClick = TRUE))
         }
     }
+    
+    # add legend, layer control, zoom reset, and heatmap toggle onto map
+    map_object = map_object %>%
+        addLegend(pal = pal, values = storm_data$Pressure, opacity = 0.7, title = "Pressure", labFormat = labelFormat(suffix = " mb"), position = "bottomright") %>%
+        addLayersControl(baseGroups = c("Esri.WorldStreetMap", "OpenTopoMap", "Esri.WorldImagery"), options = layersControlOptions(collapsed = FALSE))
+    
+        # reset map to Atlantic ocean of Atlantic data  and set heatmap toggle to off
+        if (substr(storm_data$Unique_ID, 0, 2) == "AL") {
+            map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([30, -40]);}"))) %>%
+                addEasyButton(easyButton(title = "Toggle heatmap on", icon = "ion-toggle", onClick = JS("function(btn, map){ Shiny.onInputChange('atl_heat', 'T');}")))
+        }
+        # otherwise reset to Pacific ocean  and set heatmap toggle to off
+        else {
+            map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([20, -150]);}"))) %>%
+                addEasyButton(easyButton(title = "Toggle heatmap on", icon = "ion-toggle", onClick = JS("function(btn, map){ Shiny.onInputChange('pac_heat', 'T');}")))
+        }
+ 
     map_object
 }
 
-# !!! all hurricanes have N/A in Size column, so using scaled down speed to plot size of hurricane at each point of its path
+# plot a danger heatmap of all given storms' coordinates
+# - intensity is more red at higher speeds
+plot_storm_heatmap = function(storm_data_list) {
+    
+    # scaler for circle markers, zoom ranges, and heatmap parameters
+    marker_scale = 1.5
+    z_min = 4
+    z_max = 8
+    hm_blur = 15
+    hm_max = 200
+    hm_cell = 1
+    
+    map_object = leaflet() %>% 
+        addProviderTiles(providers$Esri.WorldStreetMap, group = "Esri.WorldStreetMap", options = providerTileOptions(minZoom = z_min, maxZoom = z_max)) %>%
+        addProviderTiles(providers$OpenTopoMap, group = "OpenTopoMap", options = providerTileOptions(minZoom = z_min, maxZoom = z_max)) %>%
+        addProviderTiles(providers$Esri.WorldImagery, group = "Esri.WorldImagery", options = providerTileOptions(minZoom = z_min, maxZoom = z_max))
+    
+    if (length(storm_data_list) == 0 ) {
+        return (map_object)
+    }
+    
+    # treat storms as one to get one single heatmap instead of several overlapping
+    storm_data = rbind_list(lapply(storm_data_list, data.frame))
+    
+    # apply longitude fix and add heatmap
+    longitude = ifelse(storm_data$Lon > 0, storm_data$Lon - 360, storm_data$Lon) #~Lon
+    map_object = map_object %>% 
+        #addHeatmap(lng = storm_data$Lon, lat = storm_data$Lat, intensity = storm_data$Speed, blur = hm_blur, max = hm_max, cellSize = hm_cell)
+        addHeatmap(lng = longitude, lat = storm_data$Lat, intensity = storm_data$Speed, blur = hm_blur, max = hm_max, cellSize = hm_cell)
+    
+    # add layer control, zoom reset, and heatmap toggle onto map
+    map_object = map_object %>%
+        addLayersControl(baseGroups = c("Esri.WorldStreetMap", "OpenTopoMap", "Esri.WorldImagery"), options = layersControlOptions(collapsed = FALSE))
+    
+    # reset map to Atlantic ocean of Atlantic data and set heatmap toggle to on
+    if (substr(storm_data_list[[1]]$Unique_ID, 0, 2) == "AL") {
+        map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([30, -40]);}"))) %>%
+            addEasyButton(easyButton(title = "Toggle heatmap off", icon = "ion-toggle-filled", onClick = JS("function(btn, map){ Shiny.onInputChange('atl_heat', 'F');}")))
+    }
+    # otherwise reset to Pacific ocean and set heatmap toggle to on
+    else {
+        map_object = map_object %>% addEasyButton(easyButton(title = "Reset zoom", icon = "fa-undo", onClick = JS("function(btn, map){ map.setZoom(4);map.flyTo([20, -150]);}"))) %>%
+            addEasyButton(easyButton(title = "Toggle heatmap off", icon = "ion-toggle-filled", onClick = JS("function(btn, map){ Shiny.onInputChange('pac_heat', 'F');}")))
+    }
+    
+    map_object
+}
 
 ############################## FILTERING STORMS FUNCTIONS ######################
 ############################## FILTERING STORMS FUNCTIONS ######################
@@ -261,12 +437,25 @@ get_storms_no_landfall = function(storm_data_list) {
 ############################### TABLES ####################################
 ############################### TABLES ####################################
 
-# get a table of hurricanes in order by top speed for a given data set
-get_storm_names_max_speed_table = function(storm_data_list) {
+fix_pressures = function(pressures){
+    to_vec(
+        for (pressure in pressures) 
+            if (pressure < 0)
+                0
+        else 
+            pressure
+    )
+}
+
+# get a table of hurricanes top speeds and min pressures
+get_storm_names_max_speed_min_pressure_table = function(storm_data_list) {
     table = list()
     i = 1
     for (storm_data in storm_data_list) {
-        table[[i]] = c(storm_data$Storm_Name[1], strftime(storm_data$Timestamp, "%m/%d/%Y")[2], max(storm_data$Speed))
+        top_speed = max(storm_data$Speed)
+        top_speed_index = which(storm_data$Speed == top_speed)[1] # store index to get date associated date with speed 
+        min_pressure = min(fix_pressures(storm_data$Pressure)) 
+        table[[i]] = c(storm_data$Storm_Name[1], strftime(storm_data$Timestamp[top_speed_index], "%m/%d/%Y"), top_speed, min_pressure)
         i = i + 1
     }
     
@@ -275,28 +464,219 @@ get_storm_names_max_speed_table = function(storm_data_list) {
     names(df)[1] <- "Storm_Name"
     names(df)[2] <- "Timestamp"
     names(df)[3] <- "TopSpeed"
+    names(df)[4] <- "MinPressure"
     df$TopSpeed <- as.numeric(df$TopSpeed)
+    df$MinPressure <- as.numeric(df$MinPressure)
     df$Timestamp <- parse_date_time(df$Timestamp,"%m/%d/%Y", tz = 'America/Chicago', quiet = TRUE)    
-    # sort in descending order and return the ordered list of names
-    df <- df[order(-df$TopSpeed), ]
+    
+    # no need to sort; graphing auto sorts the x
     df
 }
 
 
-colors = c(
-    "red",
-    "blue",
-    "gray",
-    "pink",
-    "purple",
-    "black",
-    "aqua",
-    "teal",
-    "yellow",
-    "brown",
-    "green",
-    "turquoise",
-    "orange",
-    "fuscia",
-    "white"
-)
+# make a graph for a single year's categories; assumes storm_data_lists contains all storms from the same year
+# year argument is just to display the graph's title
+graph_category_counts = function(pacific_list, atlantic_list, year){
+    category_map1 = hashmap(1:5, c(0, 0, 0, 0, 0)) # to count how many per category
+    category_map2 = hashmap(1:5, c(0, 0, 0, 0, 0)) # to count how many per category
+    
+    for(storm_data in pacific_list){
+        for(category in storm_data$Category){
+            if (category != 0){
+                category_map1[[category]] = category_map1[[category]] + 1
+            }
+        }
+    }
+    
+    for(storm_data in atlantic_list){
+        for(category in storm_data$Category){
+            if (category != 0){
+                category_map2[[category]] = category_map2[[category]] + 1
+            }
+        }
+    }
+    
+    table = data.frame(category = c(category_map1$keys(), category_map1$keys()), 
+                       count = c(as.integer(category_map1$values()), as.integer(category_map2$values()))
+    )
+    table$ocean = c(rep("PACIFIC", 5), rep("ATLANTIC", 5)) # column to do grouped bar
+    
+    ggplot(data = table, aes(x = category, y = count, fill = ocean)) +
+        geom_bar(stat = "identity", position = "dodge") + 
+        labs(title = paste("Given Year: ", year)) +
+        xlab("Category") + ylab("Count") +
+        theme(axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 14), 
+              axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16),
+              plot.title = element_text(size = 18)) +
+        scale_x_continuous(breaks=1:5)
+}
+
+
+get_month_data = function(storm_data_list){ # UPDATE NOTEBOOK
+    # hurricane season from june to november
+    june = list() # 6
+    july = list() # 7
+    august = list() # 8
+    september = list() # 9
+    october = list() # 10
+    november = list() # 11
+    
+    june_index = 1
+    july_index = 1
+    august_index = 1
+    september_index = 1
+    october_index = 1
+    november_index = 1
+    
+    for (storm_data in storm_data_list){
+        month = month(as.Date(storm_data$Timestamp))
+        if (any(month == 6)){
+            june[[june_index]] = storm_data
+            june_index = june_index + 1
+        } else if (any(month == 7)){
+            july[[july_index]] = storm_data
+            july_index = july_index + 1
+        } else if (any(month == 8)){
+            august[[august_index]] = storm_data
+            august_index = august_index + 1
+        } else if (any(month == 9)){
+            september[[september_index]] = storm_data
+            september_index = september_index + 1
+        } else if (any(month == 10)){
+            october[[october_index]] = storm_data
+            october_index = october_index + 1
+        } else if (any(month == 11)){
+            november[[november_index]] = storm_data
+            november_index = november_index + 1
+        }
+    }
+    
+    list(june=june, july=july, august=august, september=september, october=october, november=november)
+}
+
+get_month_data_max_wind_speed = function(storm_data_list, low, high){
+    bounds = low:high
+    
+    # hurricane season from june to november
+    june = list() # 6
+    july = list() # 7
+    august = list() # 8
+    september = list() # 9
+    october = list() # 10
+    november = list() # 11
+    
+    june_index = 1
+    july_index = 1
+    august_index = 1
+    september_index = 1
+    october_index = 1
+    november_index = 1
+    
+    
+    for (storm_data in storm_data_list){
+        month = month(as.Date(storm_data$Timestamp))
+        if (any(storm_data$Speed %in% bounds)){
+            if (any(month == 6)){
+                june[[june_index]] = storm_data
+                june_index = june_index + 1
+            } else if (any(month == 7)){
+                july[[july_index]] = storm_data
+                july_index = july_index + 1
+            } else if (any(month == 8)){
+                august[[august_index]] = storm_data
+                august_index = august_index + 1
+            } else if (any(month == 9)){
+                september[[september_index]] = storm_data
+                september_index = september_index + 1
+            } else if (any(month == 10)){
+                october[[october_index]] = storm_data
+                october_index = october_index + 1
+            } else if (any(month == 11)){
+                november[[november_index]] = storm_data
+                november_index = november_index + 1
+            }
+        }
+        
+    }
+    
+    
+    list(june=june, july=july, august=august, september=september, october=october, november=november)
+}
+
+
+get_month_data_min_pressure = function(storm_data_list, low, high){
+    bounds = low:high
+    
+    # hurricane season from june to november
+    june = list() # 6
+    july = list() # 7
+    august = list() # 8
+    september = list() # 9
+    october = list() # 10
+    november = list() # 11
+    
+    june_index = 1
+    july_index = 1
+    august_index = 1
+    september_index = 1
+    october_index = 1
+    november_index = 1
+    
+    
+    for (storm_data in storm_data_list){
+        month = month(as.Date(storm_data$Timestamp))
+        if (any(fix_pressures(storm_data$Pressure) %in% bounds)){
+            if (any(month == 6)){
+                june[[june_index]] = storm_data
+                june_index = june_index + 1
+            } else if (any(month == 7)){
+                july[[july_index]] = storm_data
+                july_index = july_index + 1
+            } else if (any(month == 8)){
+                august[[august_index]] = storm_data
+                august_index = august_index + 1
+            } else if (any(month == 9)){
+                september[[september_index]] = storm_data
+                september_index = september_index + 1
+            } else if (any(month == 10)){
+                october[[october_index]] = storm_data
+                october_index = october_index + 1
+            } else if (any(month == 11)){
+                november[[november_index]] = storm_data
+                november_index = november_index + 1
+            }
+        }
+        
+    }
+    
+    
+    list(june=june, july=july, august=august, september=september, october=october, november=november)
+}
+
+graph_month_data = function(pacific_month_data, atlantic_month_data){
+    pacific_counts = to_vec(
+        for (storm_data in pacific_month_data)
+            length(storm_data)
+    )
+    
+    atlantic_counts = to_vec(
+        for (storm_data in atlantic_month_data)
+            length(storm_data)
+    )
+    
+    month_df = data.frame(month = rep(months, 2),
+                          count = c(pacific_counts, atlantic_counts),
+                          ocean = c(rep("PACIFIC", 6), rep("ATLANTIC", 6))
+    )
+    
+    ggplot(data = month_df, aes(x = month, y = count, fill = ocean)) + 
+        geom_bar(stat = "identity", position = "dodge") + xlab("Month") + ylab("Hurricane Count") + 
+        theme(axis.text.x = element_text(size = 14, angle = 45), axis.text.y = element_text(size = 14), 
+              axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16))
+    
+}
+
+
+# months in the hurricane season
+months = c("June" , "July", "August", "September", "October", "November")
+months = factor(months, levels = months, ordered = TRUE)
