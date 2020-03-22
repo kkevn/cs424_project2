@@ -6,7 +6,7 @@ This project is the second project for CS 424 at the University of Illinois at C
 
 *Created by: Kevin Kowalski, Samuel Kajah, Vijay Vemu*
 
-More information can be found at the following project link: < Vijay's project page here >
+More information can be found at the following project link: https://sites.google.com/view/vijay-vemucs424/project-2
 
 ---
 
