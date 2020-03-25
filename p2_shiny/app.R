@@ -572,6 +572,14 @@ server = function(input, output, session) {
     updateCheckboxGroupInput(session, checkbox_group_name, 
                              choices = shown_names, selected = shown_names)
     
+    
+    # update the days to only show for the current year 
+    updateSelectInput(session, "days", 
+                      choices = c("", to_vec(
+                        for (date in days_and_years$days) if (endsWith(date, as.character(input$years))) date)
+                      )
+    )
+    
     # have to do for both of them because the wind and pressure graphs show both oceans regardless of what tab
     atlantic_year = get_storms_by_year(atlantic_data, input$years)
     pacific_year = get_storms_by_year(pacific_data, input$years)
